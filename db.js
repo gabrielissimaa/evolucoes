@@ -1,6 +1,6 @@
 // ===================== ARMAZENAMENTO (IndexedDB + fila de sync) =====================
 const DB_NAME = 'visita-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let _db = null;
 
 function abrirDB(){
@@ -14,6 +14,9 @@ function abrirDB(){
       }
       if(!db.objectStoreNames.contains('fila_sync')){
         db.createObjectStore('fila_sync', { keyPath: 'id', autoIncrement: true });
+      }
+      if(!db.objectStoreNames.contains('configuracoes')){
+        db.createObjectStore('configuracoes', { keyPath: 'chave' });
       }
     };
     req.onsuccess = (e)=>{ _db = e.target.result; resolve(_db); };
@@ -63,6 +66,41 @@ async function dbDelete(store, id){
 
 function gerarId(){
   return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+}
+
+// ---- Customizações dos protocolos (itens a avaliar / sinais de alarme editados pelo usuário) ----
+let protocolosCustom = {}; // { [chave]: { obrigatorios:[...], riscos:[...] } } — só entra aqui o que foi editado
+
+async function carregarProtocolosCustom(){
+  try{
+    const reg = await dbGet('configuracoes', 'protocolos_customizados');
+    protocolosCustom = (reg && reg.valor) || {};
+  }catch(e){
+    protocolosCustom = {};
+  }
+  return protocolosCustom;
+}
+
+async function salvarProtocolosCustom(){
+  await dbPut('configuracoes', { chave:'protocolos_customizados', valor: protocolosCustom, atualizadoEm: new Date().toISOString() });
+  if(window.enviarConfigParaSupabase){
+    window.enviarConfigParaSupabase('protocolos_customizados', protocolosCustom).catch(()=>{});
+  }
+}
+
+// Retorna o protocolo "efetivo": os campos fixos (label, fonte, etc.) do padrão + obrigatorios/riscos
+// customizados pelo usuário, se houver. Use esta função em vez de ler CONSULTAS_PADRAO[chave] direto
+// em qualquer lugar que lide com itens a avaliar / sinais de alarme.
+function protocoloEfetivo(chave){
+  const base = CONSULTAS_PADRAO[chave];
+  if(!base) return null;
+  const custom = protocolosCustom[chave];
+  if(!custom) return base;
+  return {
+    ...base,
+    obrigatorios: custom.obrigatorios !== undefined ? custom.obrigatorios : base.obrigatorios,
+    riscos: custom.riscos !== undefined ? custom.riscos : base.riscos,
+  };
 }
 
 // ---- Modelo padrão de um paciente/registro novo ----
