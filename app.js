@@ -464,6 +464,7 @@ function renderTipoConsultaSecao(){
     corpo += renderRiscosChecklistHtml(proto);
 
     if(!paciente.protocoloDados[paciente.tipoConsulta]){
+      aplicarTextosPadrao(paciente.tipoConsulta);
       inicializarProtocoloDados(paciente.tipoConsulta);
       atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
     }
@@ -479,9 +480,12 @@ function selecionarTipoConsulta(k){
   paciente.tipoConsulta = (paciente.tipoConsulta === k) ? '' : k;
   paciente.consultaChecklist = {};
   paciente.riscoChecklist = {};
-  if(paciente.tipoConsulta && !paciente.protocoloDados[paciente.tipoConsulta]){
-    inicializarProtocoloDados(paciente.tipoConsulta);
-    atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
+  if(paciente.tipoConsulta){
+    aplicarTextosPadrao(paciente.tipoConsulta);
+    if(!paciente.protocoloDados[paciente.tipoConsulta]){
+      inicializarProtocoloDados(paciente.tipoConsulta);
+      atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
+    }
   }
   scheduleSave();
   render();
@@ -658,6 +662,7 @@ function renderEncaminhamentosSecao(){
   const proto = protocoloEfetivo(paciente.tipoConsulta);
   if(!proto) return '';
   if(!paciente.protocoloDados[paciente.tipoConsulta]){
+    aplicarTextosPadrao(paciente.tipoConsulta);
     inicializarProtocoloDados(paciente.tipoConsulta);
     atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
   }
@@ -885,9 +890,9 @@ function regenerarEvolucao(){
 
 // ===================== TELA: CONFIGURAÇÕES DOS PROTOCOLOS =====================
 function renderConfiguracoes(){
-  const linhas = Object.entries(CONSULTAS_PADRAO).filter(([k])=>k!=='geral').map(([k,v])=>{
+  const linhas = Object.entries(CONSULTAS_PADRAO).map(([k,v])=>{
     const editado = protocolosCustom[k] ? ' · editado por você' : '';
-    const qtd = v.obrigatorios ? `${v.obrigatorios.length} itens` : 'Protocolo ainda não revisado';
+    const qtd = v.obrigatorios ? `${v.obrigatorios.length} itens` : (k==='geral' ? 'Sem checklist — só textos padrão' : 'Protocolo ainda não revisado');
     return `<div class="pcard" onclick="irParaConfiguracoesProtocolo('${k}')">
       <div class="pinfo">
         <div class="pname">${escapeHtml(v.label)}</div>
@@ -902,7 +907,7 @@ function renderConfiguracoes(){
       <h1>Protocolos</h1>
     </div>
     <main>
-      <p class="hint" style="margin-bottom:12px;">Toque num protocolo para editar os itens a avaliar e os sinais de alarme.</p>
+      <p class="hint" style="margin-bottom:12px;">Toque num protocolo para editar os itens a avaliar, os sinais de alarme, e os textos padrão de Subjetivo/Avaliação/Plano.</p>
       ${linhas}
     </main>
   `;
@@ -912,10 +917,13 @@ function renderConfiguracoesProtocolo(){
   const chave = tela.chave;
   const proto = protocoloEfetivo(chave);
   if(!proto) return renderConfiguracoes();
+  const temChecklist = !!proto.obrigatorios;
   const obrig = proto.obrigatorios || [];
   const riscos = proto.riscos || [];
   const editadoObrig = !!(protocolosCustom[chave] && protocolosCustom[chave].obrigatorios !== undefined);
   const editadoRiscos = !!(protocolosCustom[chave] && protocolosCustom[chave].riscos !== undefined);
+  const textos = (protocolosCustom[chave] && protocolosCustom[chave].textosPadrao) || { subjetivo:'', avaliacao:'', plano:'' };
+  const temTextoPadrao = textos.subjetivo || textos.avaliacao || textos.plano;
 
   const listaHtml = (itens, tipo) => itens.length ? itens.map((item, i) => `
     <div class="labeditrow" style="grid-template-columns:1fr 26px;">
@@ -931,6 +939,21 @@ function renderConfiguracoesProtocolo(){
     </div>
     <main>
       <div class="section"><div class="section-body open">
+        <label class="flabel">Texto padrão — Subjetivo</label>
+        <p class="hint" style="margin-bottom:6px;">Preenche a caixa Subjetivo automaticamente quando ela estiver vazia (você pode sempre editar depois).</p>
+        <textarea oninput="editarTextoPadrao('subjetivo', this.value)" placeholder="Ex: Refere estar bem, nega sintomas novos. Boa adesão à medicação.">${escapeHtml(textos.subjetivo)}</textarea>
+
+        <label class="flabel" style="margin-top:16px;">Texto padrão — Avaliação</label>
+        <textarea oninput="editarTextoPadrao('avaliacao', this.value)" placeholder="Ex: Quadro estável, sem intercorrências.">${escapeHtml(textos.avaliacao)}</textarea>
+
+        <label class="flabel" style="margin-top:16px;">Texto padrão — Plano</label>
+        <textarea oninput="editarTextoPadrao('plano', this.value)" placeholder="Ex: Solicitar PPD. Manter conduta atual.">${escapeHtml(textos.plano)}</textarea>
+
+        ${temTextoPadrao ? `<div class="btnrow" style="margin-top:10px;"><button class="btn danger sm" onclick="restaurarTextosPadrao()">Limpar textos padrão</button></div>` : ''}
+      </div></div>
+
+      ${temChecklist ? `
+      <div class="section"><div class="section-body open">
         <label class="flabel">Itens a avaliar${editadoObrig ? ' (editado)' : ''}</label>
         ${listaHtml(obrig, 'obrigatorios')}
         <div class="btnrow"><button class="btn sm" onclick="adicionarItemProtocolo('obrigatorios')">+ Adicionar item</button></div>
@@ -939,8 +962,9 @@ function renderConfiguracoesProtocolo(){
         ${listaHtml(riscos, 'riscos')}
         <div class="btnrow"><button class="btn sm" onclick="adicionarItemProtocolo('riscos')">+ Adicionar sinal de alarme</button></div>
 
-        ${(editadoObrig || editadoRiscos) ? `<div class="btnrow" style="margin-top:20px;"><button class="btn danger sm" onclick="restaurarProtocoloPadrao()">Restaurar padrão deste protocolo</button></div>` : ''}
+        ${(editadoObrig || editadoRiscos) ? `<div class="btnrow" style="margin-top:20px;"><button class="btn danger sm" onclick="restaurarProtocoloPadrao()">Restaurar itens ao padrão</button></div>` : ''}
       </div></div>
+      ` : ''}
       ${proto.fonte ? `<p class="hint">Fonte original: ${escapeHtml(proto.fonte)}</p>` : ''}
     </main>
   `;
@@ -952,7 +976,23 @@ function garantirCustom(chave){
   const base = CONSULTAS_PADRAO[chave];
   if(c.obrigatorios === undefined) c.obrigatorios = [...(base.obrigatorios || [])];
   if(c.riscos === undefined) c.riscos = [...(base.riscos || [])];
+  if(!c.textosPadrao) c.textosPadrao = { subjetivo:'', avaliacao:'', plano:'' };
   return c;
+}
+function editarTextoPadrao(campo, valor){
+  const c = garantirCustom(tela.chave);
+  c.textosPadrao[campo] = valor;
+  salvarProtocolosCustom();
+}
+// Preenche Subjetivo/Avaliação/Plano com o texto padrão salvo para o protocolo, só se o campo
+// ainda estiver vazio (nunca sobrescreve o que o médico já escreveu).
+function aplicarTextosPadrao(chave){
+  const custom = protocolosCustom[chave];
+  const textos = custom && custom.textosPadrao;
+  if(!textos) return;
+  if(campoVazioApp(paciente.subjetivo) && textos.subjetivo) paciente.subjetivo = textos.subjetivo;
+  if(campoVazioApp(paciente.avaliacao) && textos.avaliacao) paciente.avaliacao = textos.avaliacao;
+  if(campoVazioApp(paciente.plano) && textos.plano) paciente.plano = textos.plano;
 }
 function editarItemProtocolo(tipo, i, valor){
   const c = garantirCustom(tela.chave);
@@ -973,6 +1013,11 @@ function adicionarItemProtocolo(tipo){
 }
 async function restaurarProtocoloPadrao(){
   delete protocolosCustom[tela.chave];
+  await salvarProtocolosCustom();
+  render();
+}
+async function restaurarTextosPadrao(){
+  if(protocolosCustom[tela.chave]) protocolosCustom[tela.chave].textosPadrao = { subjetivo:'', avaliacao:'', plano:'' };
   await salvarProtocolosCustom();
   render();
 }
