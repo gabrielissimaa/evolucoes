@@ -531,7 +531,7 @@ function atualizarPlanoAutomaticoGenerico(chave){
   if(!pd) return;
   const linhas = [];
   if(!campoVazioApp(pd.retornoValor)){
-    linhas.push(`Agendar retorno em ${pd.retornoValor.trim()} ${pd.retornoUnidade === 'dias' ? 'dias' : (pd.retornoUnidade === 'semanas' ? 'semanas' : 'meses')}.`);
+    linhas.push(`Agendar retorno em ${pd.retornoValor.trim()} ${unidadeSingularPlural(pd.retornoValor, pd.retornoUnidade)}.`);
   }
   if(!campoVazioApp(pd.especialistas)){
     linhas.push(`Encaminhar para acompanhamento regular: ${pd.especialistas.trim()}.`);
@@ -621,6 +621,13 @@ function atualizarPlanoAutomaticoHAS(){
   h._planoAutoTextoExames = novoBloco;
 }
 function campoVazioApp(v){ return !v || !String(v).trim() || String(v).trim() === '-'; }
+function unidadeSingularPlural(valor, unidade){
+  const n = parseFloat(String(valor).replace(',', '.'));
+  const singular = n === 1;
+  if(unidade === 'dias') return singular ? 'dia' : 'dias';
+  if(unidade === 'semanas') return singular ? 'semana' : 'semanas';
+  return singular ? 'mês' : 'meses';
+}
 
 function setOrientacaoHAS(v){
   paciente.protocoloHAS.orientacaoEstiloVida.feita = v;
