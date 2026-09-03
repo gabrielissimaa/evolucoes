@@ -122,6 +122,30 @@ const LAB_TODOS = [...LAB_SEMPRE, ...LAB_OUTROS];
 // IMPORTANTE: só incluímos aqui o que já foi conferido linha a linha contra o material
 // enviado + a diretriz/nota técnica vigente mais recente. Protocolos com obrigatorios:null
 // ainda não foram revisados — evite usar como referência clínica até serem preenchidos.
+// Texto de referência compartilhado entre os protocolos de criança (botão ℹ do item "uso de telas")
+const TEXTO_INFO_TELAS = `USO DE TELAS EM CRIANÇAS E ADOLESCENTES
+(SMS-RJ/SUBPAV — Guia Rápido: Acompanhamento da Criança na APS, ed. 2026, com base no Manual de Orientação da SBP)
+
+Recomendações de tempo por idade:
+Menores de 2 anos — evitar exposição a telas
+2 a 5 anos — no máximo 1 hora por dia, com supervisão
+6 a 10 anos — no máximo 1 a 2 horas por dia, com supervisão
+Adolescentes (11 a 18 anos) — no máximo 2 a 3 horas por dia (telas e videogames)
+
+Riscos do uso desregrado, citados no guia:
+Ansiedade, irritabilidade e depressão, com casos de suicídio associados
+Comportamentos autolesivos, sobretudo em "desafios" que circulam nas redes
+Transtorno de déficit de atenção
+Problemas de sono
+Sedentarismo e obesidade
+Problemas visuais (miopia) e ortopédicos (coluna cervical, tendinite)
+Dependência digital e isolamento social
+Maior vulnerabilidade a abusos virtuais (sexting, cyberbullying)
+Transtornos alimentares e de autoimagem
+
+"Phubbing parental": cuidador mentalmente ausente por causa do celular durante o cuidado com a criança —
+vale orientar também os pais/cuidadores sobre uso consciente, não só a criança.`;
+
 const CONSULTAS_PADRAO = {
   geral:    { label: 'Consulta geral', obrigatorios: null },
   idoso: {
@@ -512,6 +536,7 @@ CRIE = Centro de Referência de Imunobiológicos Especiais.`,
       'Vínculo familiar e social',
       'Prevenção de acidentes (orientações de segurança)',
       'Triagem de problemas prevalentes na infância',
+      'Orientar sobre uso de telas (tempo e riscos)',
     ],
     riscos: [
       'Estagnação ou perda de peso (curva de crescimento)',
@@ -519,6 +544,7 @@ CRIE = Centro de Referência de Imunobiológicos Especiais.`,
       'Febre em menor de 3 meses',
       'Sinais de desidratação ou dificuldade respiratória',
     ],
+    obrigatoriosInfo: { 7: TEXTO_INFO_TELAS },
   },
   crianca_pre_escolar: {
     label: 'Criança — Pré-escolar/Escolar (2 a 10 anos)',
@@ -534,12 +560,14 @@ CRIE = Centro de Referência de Imunobiológicos Especiais.`,
       'Inserção e desempenho no ambiente escolar',
       'Saúde bucal',
       'Vínculo familiar e social; rastreio de situações de violência',
+      'Orientar sobre uso de telas (tempo e riscos)',
     ],
     riscos: [
       'Sinais de violência física, sexual ou negligência',
       'Sinais de sofrimento psíquico importante',
       'Déficit de crescimento ou de desenvolvimento identificado',
     ],
+    obrigatoriosInfo: { 7: TEXTO_INFO_TELAS },
   },
   crianca_adolescente: {
     label: 'Criança/Adolescente (10 a 19 anos)',
@@ -555,6 +583,7 @@ CRIE = Centro de Referência de Imunobiológicos Especiais.`,
       'Rastreio de uso de álcool e outras substâncias',
       'Rastreio de sofrimento psíquico, ideação suicida e situações de violência',
       'Vínculo familiar, escolar e social',
+      'Orientar sobre uso de telas (tempo e riscos)',
     ],
     riscos: [
       'Ideação ou plano suicida',
@@ -562,5 +591,6 @@ CRIE = Centro de Referência de Imunobiológicos Especiais.`,
       'Uso de risco de álcool/outras substâncias',
       'Sinais de transtorno alimentar',
     ],
+    obrigatoriosInfo: { 7: TEXTO_INFO_TELAS },
   },
 };
