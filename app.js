@@ -426,13 +426,41 @@ function renderTipoConsultaSecao(){
     if(proto.alerta){
       corpo += `<div class="qitem" style="border-color:var(--warn);margin-top:12px;"><strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong><p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p></div>`;
     }
-    corpo += `<label class="flabel">Itens obrigatórios desta consulta (${escapeHtml(proto.label)})</label>`;
+    corpo += `<label class="flabel">Itens a avaliar (${escapeHtml(proto.label)})</label>`;
     corpo += proto.obrigatorios.map((item, i)=>{
       const on = paciente.consultaChecklist && paciente.consultaChecklist[i];
       return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;" onclick="toggleChecklistItem(${i})">
         <span style="flex:1;">${escapeHtml(item)}</span>${on?'✓':''}
       </div>`;
     }).join('');
+
+    if(proto.riscos && proto.riscos.length){
+      corpo += `<label class="flabel" style="margin-top:16px;color:var(--danger);">⚠ Sinais de alarme / critérios de encaminhamento</label>`;
+      corpo += proto.riscos.map((item, i)=>{
+        const on = paciente.riscoChecklist && paciente.riscoChecklist[i];
+        return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;${on?'border-color:var(--danger);color:var(--danger);':''}" onclick="toggleRiscoItem(${i})">
+          <span style="flex:1;">${escapeHtml(item)}</span>${on?'⚠':''}
+        </div>`;
+      }).join('');
+    }
+
+    if(!paciente.protocoloDados[paciente.tipoConsulta]) inicializarProtocoloDados(paciente.tipoConsulta);
+    const pd = paciente.protocoloDados[paciente.tipoConsulta];
+    corpo += `
+      <label class="flabel" style="margin-top:16px;">Retorno sugerido — entra automaticamente no Plano</label>
+      <div class="row2">${campoTextoAutoPlanoGenerico('Retorno em', paciente.tipoConsulta, 'retornoValor', 'Ex: 3')}
+        <div>
+          <label class="flabel">Unidade</label>
+          <div class="togglebar">
+            <button class="${pd.retornoUnidade!=='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','meses')">Meses</button>
+            <button class="${pd.retornoUnidade==='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','dias')">Dias</button>
+          </div>
+        </div>
+      </div>
+      <label class="flabel" style="margin-top:16px;">Encaminhamentos / especialistas de acompanhamento regular</label>
+      ${campoTextoAutoPlanoGenerico('Especialistas', paciente.tipoConsulta, 'especialistas', 'Ex: Psiquiatria, CAPS')}
+      ${campoArea('Observações do protocolo','protocoloDados.'+paciente.tipoConsulta+'.observacoes')}
+    `;
     if(proto.fonte) corpo += `<p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>`;
   } else if(proto){
     corpo += `<p class="hint" style="margin-top:12px;">Protocolo de "${escapeHtml(proto.label)}" ainda não foi revisado e adicionado ao app — em breve.</p>`;
@@ -443,6 +471,11 @@ function renderTipoConsultaSecao(){
 function selecionarTipoConsulta(k){
   paciente.tipoConsulta = (paciente.tipoConsulta === k) ? '' : k;
   paciente.consultaChecklist = {};
+  paciente.riscoChecklist = {};
+  if(paciente.tipoConsulta && paciente.tipoConsulta !== 'has' && !paciente.protocoloDados[paciente.tipoConsulta]){
+    inicializarProtocoloDados(paciente.tipoConsulta);
+    atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
+  }
   scheduleSave();
   render();
 }
@@ -451,6 +484,63 @@ function toggleChecklistItem(i){
   paciente.consultaChecklist[i] = !paciente.consultaChecklist[i];
   scheduleSave();
   render();
+}
+function toggleRiscoItem(i){
+  if(!paciente.riscoChecklist) paciente.riscoChecklist = {};
+  paciente.riscoChecklist[i] = !paciente.riscoChecklist[i];
+  scheduleSave();
+  render();
+}
+
+// ---- Genérico: retorno/especialistas com preenchimento automático do Plano (usado por todo protocolo exceto HAS) ----
+function inicializarProtocoloDados(chave){
+  const proto = CONSULTAS_PADRAO[chave];
+  const def = (proto && proto.planoDefault) || { retornoValor:'', retornoUnidade:'meses' };
+  paciente.protocoloDados[chave] = {
+    retornoValor: def.retornoValor || '', retornoUnidade: def.retornoUnidade || 'meses',
+    especialistas: '', observacoes: '', _planoAutoTexto: '',
+  };
+}
+function campoTextoAutoPlanoGenerico(label, chave, campo, placeholder=''){
+  const path = `protocoloDados.${chave}.${campo}`;
+  const valor = getPath(paciente, path) || '';
+  return `<div><label class="flabel">${label}</label>
+    <input type="text" value="${escapeHtml(valor)}" placeholder="${escapeHtml(placeholder)}"
+      oninput="handleFieldAutoPlanoGenerico('${chave}', '${path}', this.value)"></div>`;
+}
+function handleFieldAutoPlanoGenerico(chave, path, value){
+  setPath(paciente, path, value);
+  atualizarPlanoAutomaticoGenerico(chave);
+  scheduleSave();
+  const planoEl = document.querySelector('textarea[oninput^="handleField(\'plano\'"]');
+  if(planoEl) planoEl.value = paciente.plano;
+}
+function setRetornoUnidadeGenerico(chave, u){
+  paciente.protocoloDados[chave].retornoUnidade = u;
+  atualizarPlanoAutomaticoGenerico(chave);
+  scheduleSave();
+  render();
+}
+function atualizarPlanoAutomaticoGenerico(chave){
+  const pd = paciente.protocoloDados[chave];
+  if(!pd) return;
+  const linhas = [];
+  if(!campoVazioApp(pd.retornoValor)){
+    linhas.push(`Agendar retorno em ${pd.retornoValor.trim()} ${pd.retornoUnidade === 'dias' ? 'dias' : (pd.retornoUnidade === 'semanas' ? 'semanas' : 'meses')}.`);
+  }
+  if(!campoVazioApp(pd.especialistas)){
+    linhas.push(`Encaminhar para acompanhamento regular: ${pd.especialistas.trim()}.`);
+  }
+  const novoBloco = linhas.join('\n');
+  const anterior = pd._planoAutoTexto || '';
+  let plano = paciente.plano || '';
+  if(anterior && plano.includes(anterior)){
+    plano = plano.replace(anterior, novoBloco);
+  } else if(novoBloco){
+    plano = (plano.trim() ? plano.trim() + '\n' : '') + novoBloco;
+  }
+  paciente.plano = plano.trim();
+  pd._planoAutoTexto = novoBloco;
 }
 
 function renderProtocoloHASSecao(){
