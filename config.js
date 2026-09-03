@@ -257,7 +257,8 @@ const CONSULTAS_PADRAO = {
   },
   gestante_3tri: {
     label: 'Gestante — 3º trimestre',
-    fonte: 'SMS-RJ/SUBPAV — Guia Rápido: Pré-Natal, ed. 2025 (Quadro 18 — exames de rotina).',
+    fonte: 'SMS-RJ/SUBPAV — Guia Rápido: Pré-Natal, ed. 2025 (Quadro 18 — exames de rotina). Vacina VSR: PNI/Ministério da Saúde, estratégia nacional iniciada em dez/2025.',
+    alerta: 'A vacina VSR (Abrysvo) entrou no calendário nacional da gestante recentemente (distribuição iniciada em 02/12/2025): dose única, a partir da 28ª semana, sem limite superior de idade gestacional, aplicada a qualquer época do ano. Como é um programa novo, confirme se já está disponível na sua unidade antes de orientar a gestante.',
     sugestaoAvaliacao: 'Ex: gestação de X semanas, evolução adequada, em preparo para o parto',
     sugestaoEncaminhamentos: 'Ex: maternidade de referência; pré-natal de alto risco (se indicado)',
     planoDefault: { retornoValor: '2', retornoUnidade: 'semanas' },
@@ -267,6 +268,8 @@ const CONSULTAS_PADRAO = {
       'Teste rápido para HIV, sífilis, hepatite B e hepatite C — entre 32 e 34 semanas',
       'Urocultura e urina tipo 1',
       'Coombs indireto a cada 4 semanas, se Rh negativo',
+      'Vacina dTpa em dia',
+      'Vacina VSR (dose única, a partir de 28 semanas, sem limite superior — se disponível na unidade)',
       'Vacina pneumocócica 23, se indicada',
       'Reavaliar risco gestacional e definir maternidade de referência',
       'Orientações sobre sinais de trabalho de parto e preparo para o parto',
