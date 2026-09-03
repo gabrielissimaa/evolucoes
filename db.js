@@ -95,7 +95,8 @@ function novoPaciente({ nome, leito, contexto, genero }){
     tipoConsulta:'', consultaChecklist:{},
     protocoloHAS:{ pa1:'', pa2:'', eas:'', glicemiaJejum:'', sodio:'', potassio:'', creatinina:'', tfg:'',
                    colesterolTotal:'', hdl:'', triglicerideos:'', fundoscopia:'', ecg:'',
-                   orientacaoEstiloVida:{ feita:null, detalhe:'' } },
+                   orientacaoEstiloVida:{ feita:null, detalhe:'' },
+                   examesSolicitados:null, retornoMeses:'2' },
 
     evolucaoGerada:'',
   };
@@ -104,6 +105,10 @@ function novoPaciente({ nome, leito, contexto, genero }){
 async function listarPacientesAtivos(){
   const todos = await dbGetAll('pacientes');
   return todos.filter(p=>p.ativo).sort((a,b)=> b.atualizadoEm.localeCompare(a.atualizadoEm));
+}
+async function listarTodosPacientes(){
+  const todos = await dbGetAll('pacientes');
+  return todos.sort((a,b)=> b.atualizadoEm.localeCompare(a.atualizadoEm));
 }
 
 async function salvarPaciente(p){
