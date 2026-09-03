@@ -87,28 +87,70 @@ async function render(){
 }
 
 // ===================== TELA: HOME =====================
+let modoSelecao = false;
+let selecionados = new Set();
+
+function toggleModoSelecao(){
+  modoSelecao = !modoSelecao;
+  selecionados = new Set();
+  render();
+}
+function toggleSelecaoPaciente(id){
+  if(selecionados.has(id)) selecionados.delete(id); else selecionados.add(id);
+  render();
+}
+function clicarPaciente(id){
+  if(modoSelecao) toggleSelecaoPaciente(id);
+  else irParaRegistro(id);
+}
+function confirmarExclusaoSelecionados(){
+  if(selecionados.size === 0) return;
+  openModal(`
+    <h3 style="margin:0 0 10px;">Excluir ${selecionados.size} paciente(s)?</h3>
+    <p class="hint" style="margin-bottom:16px;">Isso apaga os registros permanentemente (local e na nuvem) — não é possível desfazer.</p>
+    <div class="btnrow">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn danger" style="flex:1" onclick="executarExclusaoSelecionados()">Excluir</button>
+    </div>
+  `);
+}
+async function executarExclusaoSelecionados(){
+  for(const id of selecionados){
+    await excluirPacienteDefinitivo(id);
+  }
+  closeModal();
+  modoSelecao = false;
+  selecionados = new Set();
+  render();
+  showToast('Excluído(s) com sucesso');
+}
+
 async function renderHome(){
-  const pacientes = await listarPacientesAtivos();
+  const pacientes = modoSelecao ? await listarTodosPacientes() : await listarPacientesAtivos();
   const lista = pacientes.length ? pacientes.map(p=>`
-    <div class="pcard" onclick="irParaRegistro('${p.id}')">
-      <div class="pbadge ${p.contexto}"></div>
+    <div class="pcard" onclick="clicarPaciente('${p.id}')">
+      ${modoSelecao ? `<input type="checkbox" style="width:20px;height:20px;flex-shrink:0;accent-color:var(--danger);" ${selecionados.has(p.id)?'checked':''} onclick="event.stopPropagation();toggleSelecaoPaciente('${p.id}')">` : `<div class="pbadge ${p.contexto}"></div>`}
       <div class="pinfo">
-        <div class="pname">${escapeHtml(p.nome)}</div>
+        <div class="pname">${escapeHtml(p.nome)}${!p.ativo ? ' <span class="hint" style="display:inline;">(arquivado)</span>' : ''}</div>
         <div class="pmeta">${p.leito ? 'Leito '+escapeHtml(p.leito) : 'Sem leito'}</div>
         <span class="ptag ${p.contexto}">${CONTEXTOS[p.contexto].label}</span>
       </div>
-      <div class="pchev">›</div>
+      ${!modoSelecao ? `<div class="pchev">›</div>` : ''}
     </div>
-  `).join('') : `<div class="empty"><h3>Nenhum paciente ativo</h3><p>Toque em "Novo paciente" para começar um registro.</p></div>`;
+  `).join('') : `<div class="empty"><h3>Nenhum paciente ${modoSelecao?'':'ativo'}</h3><p>Toque em "Novo paciente" para começar um registro.</p></div>`;
 
   return `
     <div class="topbar">
       <h1>Evoluções</h1>
       <div class="syncdot" id="syncDot"></div>
+      <button class="iconbtn" onclick="toggleModoSelecao()" title="Selecionar">${modoSelecao ? '✕' : '☑'}</button>
       <button class="iconbtn" onclick="sairDaConta()" title="Sair">⏻</button>
     </div>
     <main>${lista}</main>
-    <button class="fab" onclick="abrirModalNovoPaciente()">+ Novo paciente</button>
+    ${modoSelecao
+      ? `<button class="fab" style="background:var(--danger);border-color:var(--danger);box-shadow:0 8px 24px rgba(240,101,74,.35);" onclick="confirmarExclusaoSelecionados()" ${selecionados.size===0?'disabled':''}>Excluir ${selecionados.size>0?'('+selecionados.size+')':''}</button>`
+      : `<button class="fab" onclick="abrirModalNovoPaciente()">+ Novo paciente</button>`
+    }
   `;
 }
 
@@ -421,7 +463,8 @@ function renderProtocoloHASSecao(){
     }
     return null;
   })();
-  return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', `
+
+  let corpo = `
     <div class="qitem" style="border-color:var(--warn);">
       <strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong>
       <p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p>
@@ -429,27 +472,51 @@ function renderProtocoloHASSecao(){
     <label class="flabel">Aferição da PA (2 medidas)</label>
     <div class="row2">${campoTexto('1ª medida','protocoloHAS.pa1','Ex: 130x85')}${campoTexto('2ª medida','protocoloHAS.pa2','Ex: 128x82')}</div>
 
-    <label class="flabel" style="margin-top:16px;">Lesão em órgão-alvo</label>
-    ${campoTexto('EAS (proteinúria/hematúria)','protocoloHAS.eas','Achado ou "não realizado"')}
-    <div class="row2">${campoTexto('Glicemia de jejum','protocoloHAS.glicemiaJejum')}${campoTexto('Creatinina','protocoloHAS.creatinina')}</div>
-    <div class="row2">${campoTexto('Sódio','protocoloHAS.sodio')}${campoTexto('Potássio','protocoloHAS.potassio')}</div>
-    ${campoTexto('TFG (taxa de filtração glomerular)','protocoloHAS.tfg')}
-    <div class="row3">${campoTexto('Colesterol total','protocoloHAS.colesterolTotal')}${campoTexto('HDL','protocoloHAS.hdl')}${campoTexto('Triglicerídeos','protocoloHAS.triglicerideos')}</div>
-    ${ldlCalculado!=null ? `<p class="hint">LDL calculado: ${ldlCalculado} mg/dL</p>` : ''}
-    ${campoTexto('Fundoscopia','protocoloHAS.fundoscopia','Achado ou "não realizada"')}
-    ${campoTexto('ECG de repouso','protocoloHAS.ecg','Achado ou "não realizado"')}
+    <label class="flabel" style="margin-top:16px;">Exames de lesão em órgão-alvo (EAS, glicemia, eletrólitos, creatinina, TFG, perfil lipídico, fundoscopia, ECG) foram solicitados/já realizados nesta consulta?</label>
+    <div class="togglebar">
+      <button class="${h.examesSolicitados===false?'on':''}" onclick="setExamesSolicitadosHAS(false)">Não — vou solicitar</button>
+      <button class="${h.examesSolicitados===true?'on':''}" onclick="setExamesSolicitadosHAS(true)">Sim — vou preencher</button>
+    </div>
+  `;
 
+  if(h.examesSolicitados === false){
+    corpo += `<p class="hint" style="margin-top:10px;">Certo — vou colocar automaticamente no Plano a sugestão de solicitar esses exames. Você edita o texto final se quiser ajustar.</p>`;
+  } else if(h.examesSolicitados === true){
+    corpo += `
+      ${campoTexto('EAS (proteinúria/hematúria)','protocoloHAS.eas','Achado')}
+      <div class="row2">${campoTexto('Glicemia de jejum','protocoloHAS.glicemiaJejum')}${campoTexto('Creatinina','protocoloHAS.creatinina')}</div>
+      <div class="row2">${campoTexto('Sódio','protocoloHAS.sodio')}${campoTexto('Potássio','protocoloHAS.potassio')}</div>
+      ${campoTexto('TFG (taxa de filtração glomerular)','protocoloHAS.tfg')}
+      <div class="row3">${campoTexto('Colesterol total','protocoloHAS.colesterolTotal')}${campoTexto('HDL','protocoloHAS.hdl')}${campoTexto('Triglicerídeos','protocoloHAS.triglicerideos')}</div>
+      ${ldlCalculado!=null ? `<p class="hint">LDL calculado: ${ldlCalculado} mg/dL</p>` : ''}
+      ${campoTexto('Fundoscopia','protocoloHAS.fundoscopia','Achado ou "não realizada"')}
+      ${campoTexto('ECG de repouso','protocoloHAS.ecg','Achado ou "não realizado"')}
+    `;
+  }
+
+  corpo += `
     <label class="flabel" style="margin-top:16px;">Orientação sobre estilo de vida (dieta, atividade física, álcool)</label>
     <div class="togglebar">
       <button class="${h.orientacaoEstiloVida.feita===false?'on':''}" onclick="setOrientacaoHAS(false)">Não abordado</button>
       <button class="${h.orientacaoEstiloVida.feita===true?'on':''}" onclick="setOrientacaoHAS(true)">Abordado</button>
     </div>
     ${h.orientacaoEstiloVida.feita ? campoArea('Detalhe da orientação','protocoloHAS.orientacaoEstiloVida.detalhe') : ''}
+
+    <label class="flabel" style="margin-top:16px;">Retorno sugerido (meses) — entra automaticamente no Plano</label>
+    ${campoTexto('Retorno em (meses)','protocoloHAS.retornoMeses','Ex: 2')}
+
     <p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>
-  `);
+  `;
+
+  return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', corpo);
 }
 function setOrientacaoHAS(v){
   paciente.protocoloHAS.orientacaoEstiloVida.feita = v;
+  scheduleSave();
+  render();
+}
+function setExamesSolicitadosHAS(v){
+  paciente.protocoloHAS.examesSolicitados = v;
   scheduleSave();
   render();
 }
@@ -519,9 +586,7 @@ function renderRegistro(){
   }
 
   else if(paciente.contexto === 'clinica'){
-    secoes += secaoWrap('qp','Queixa principal', `${campoTexto('QP','qp')}`);
-    secoes += renderQueixasSecao();
-    secoes += renderHdaDetalhadaSecao();
+    secoes += secaoWrap('subj','S — Subjetivo', `${campoArea('Relato do paciente (queixas, história, o que trouxe à consulta)','subjetivo')}`);
     secoes += secaoWrap('perfil','Perfil', `
       ${campoTexto('Ocupação','ocupacao')}
       <label class="flabel">Pratica atividade física?</label>
@@ -531,11 +596,10 @@ function renderRegistro(){
       </div>
       ${paciente.atividadeFisica.pratica ? campoTexto('Qual atividade / frequência','atividadeFisica.detalhe') : ''}
     `);
-    secoes += secaoWrap('subj','Subjetivo (complemento livre)', `${campoArea('Relato livre do paciente','subjetivo')}`);
     secoes += renderTipoConsultaSecao();
     if(paciente.tipoConsulta === 'has') secoes += renderProtocoloHASSecao();
     secoes += renderExameFisicoSecao();
-    secoes += secaoWrap('avplan','Avaliação e plano', `
+    secoes += secaoWrap('avplan','A / P — Avaliação e Plano', `
       ${campoArea('Avaliação','avaliacao')}
       ${campoArea('Plano','plano')}
     `);
