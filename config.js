@@ -392,6 +392,27 @@ const CONSULTAS_PADRAO = {
       'Má adesão à TARV',
       'Sem registro de CD4/carga viral nos últimos 6 meses',
     ],
+    // Texto de referência exibido ao tocar no ℹ de um item do checklist (chave = índice em obrigatorios).
+    obrigatoriosInfo: {
+      2: `VACINAS INDICADAS PARA PVHA
+(Quadro 23 — Guia Rápido HIV, SMS-RJ, adaptado de BRASIL 2018)
+
+Tríplice viral — 1 a 2 doses, se LT-CD4+ > 200 células/mm³ (Unidade de saúde)
+Varicela — 2 doses, intervalo de 3 meses, se LT-CD4+ > 200 células/mm³ (CRIE)
+Febre amarela — individualizar risco/benefício; se exposição, vacinar com LT-CD4+ > 200 células/mm³ (Unidade de saúde)
+Hepatite A — 2 doses (0 e 6 meses), se suscetível ou hepatopatia crônica (CRIE)
+Hepatite B — dose dobrada, 4 doses (0, 1, 2 e 6-12 meses), se suscetível (Unidade de saúde)
+Influenza — 1 dose anual (Unidade de saúde)
+Dupla adulto (dT) — 3 doses (0, 2, 4 meses) + reforço a cada 10 anos (Unidade de saúde)
+Hib — 2 doses, intervalo de 2 meses, se < 19 anos não vacinado (CRIE)
+Pneumo 13 (conjugada) — dose única, idealmente antes da Pneumo 23 (CRIE)
+Pneumo 23 (polissacarídica) — 1 dose se LT-CD4+ > 200 células/mm³, reforço único após 5 anos (CRIE)
+HPV — 3 doses (0, 2, 6 meses), de 9 a 45 anos (Unidade de saúde)
+Covid-19 — conforme fabricante (Unidade de saúde)
+
+Atenção: vacinas de vírus vivo (tríplice viral, varicela, febre amarela) exigem LT-CD4+ > 200 células/mm³.
+CRIE = Centro de Referência de Imunobiológicos Especiais.`,
+    },
   },
   hormonizacao: {
     label: 'Hormonização (pessoas trans, travestis, não binárias)',
