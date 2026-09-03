@@ -77,12 +77,23 @@ async function irParaEvolucao(id){
   tela = { tipo:'evolucao', id };
   render();
 }
+function irParaConfiguracoes(){
+  paciente = null;
+  tela = { tipo:'configuracoes' };
+  render();
+}
+function irParaConfiguracoesProtocolo(chave){
+  tela = { tipo:'configuracoesProtocolo', chave };
+  render();
+}
 
 async function render(){
   const app = document.getElementById('app');
   if(tela.tipo === 'home') app.innerHTML = await renderHome();
   else if(tela.tipo === 'registro') app.innerHTML = renderRegistro();
   else if(tela.tipo === 'evolucao') app.innerHTML = renderEvolucaoTela();
+  else if(tela.tipo === 'configuracoes') app.innerHTML = renderConfiguracoes();
+  else if(tela.tipo === 'configuracoesProtocolo') app.innerHTML = renderConfiguracoesProtocolo();
   atualizarIndicadorSync();
 }
 
@@ -144,6 +155,7 @@ async function renderHome(){
       <h1>Evoluções</h1>
       <div class="syncdot" id="syncDot"></div>
       <button class="iconbtn" onclick="toggleModoSelecao()" title="Selecionar">${modoSelecao ? '✕' : '☑'}</button>
+      <button class="iconbtn" onclick="irParaConfiguracoes()" title="Protocolos">⚙</button>
       <button class="iconbtn" onclick="sairDaConta()" title="Sair">⏻</button>
     </div>
     <main>${lista}</main>
@@ -198,7 +210,7 @@ function selecionarContexto(k){
 function selecionarTipoConsultaModal(t){
   window._novoCtx.tipoConsulta = t;
   document.querySelectorAll('#npTipoConsulta .chip').forEach(el=> el.classList.toggle('on', el.dataset.t===t));
-  const proto = t ? CONSULTAS_PADRAO[t] : null;
+  const proto = t ? protocoloEfetivo(t) : null;
   const hintEl = document.getElementById('npTipoConsultaHint');
   if(proto && proto.obrigatorios){
     hintEl.textContent = `Os campos vão se adequar aos itens obrigatórios do protocolo de ${proto.label}.`;
@@ -411,6 +423,18 @@ function setAtividadeFisica(v){
   render();
 }
 
+function renderRiscosChecklistHtml(proto){
+  if(!proto.riscos || !proto.riscos.length) return '';
+  let html = `<label class="flabel" style="margin-top:16px;color:var(--danger);">⚠ Sinais de alarme / critérios de encaminhamento</label>`;
+  html += proto.riscos.map((item, i)=>{
+    const on = paciente.riscoChecklist && paciente.riscoChecklist[i];
+    return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;${on?'border-color:var(--danger);color:var(--danger);':''}" onclick="toggleRiscoItem(${i})">
+      <span style="flex:1;">${escapeHtml(item)}</span>${on?'⚠':''}
+    </div>`;
+  }).join('');
+  return html;
+}
+
 function renderTipoConsultaSecao(){
   const chips = Object.entries(CONSULTAS_PADRAO).map(([k,v])=>{
     const on = paciente.tipoConsulta === k;
@@ -418,10 +442,11 @@ function renderTipoConsultaSecao(){
   }).join('');
 
   let corpo = `<div class="chipwrap">${chips}</div>`;
-  const proto = paciente.tipoConsulta ? CONSULTAS_PADRAO[paciente.tipoConsulta] : null;
+  const proto = paciente.tipoConsulta ? protocoloEfetivo(paciente.tipoConsulta) : null;
 
   if(paciente.tipoConsulta === 'has'){
     corpo += `<p class="hint" style="margin-top:12px;">Campos específicos do protocolo HAS logo abaixo ↓</p>`;
+    corpo += renderRiscosChecklistHtml(proto);
   } else if(proto && proto.obrigatorios){
     if(proto.alerta){
       corpo += `<div class="qitem" style="border-color:var(--warn);margin-top:12px;"><strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong><p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p></div>`;
@@ -434,15 +459,7 @@ function renderTipoConsultaSecao(){
       </div>`;
     }).join('');
 
-    if(proto.riscos && proto.riscos.length){
-      corpo += `<label class="flabel" style="margin-top:16px;color:var(--danger);">⚠ Sinais de alarme / critérios de encaminhamento</label>`;
-      corpo += proto.riscos.map((item, i)=>{
-        const on = paciente.riscoChecklist && paciente.riscoChecklist[i];
-        return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;${on?'border-color:var(--danger);color:var(--danger);':''}" onclick="toggleRiscoItem(${i})">
-          <span style="flex:1;">${escapeHtml(item)}</span>${on?'⚠':''}
-        </div>`;
-      }).join('');
-    }
+    corpo += renderRiscosChecklistHtml(proto);
 
     if(!paciente.protocoloDados[paciente.tipoConsulta]){
       inicializarProtocoloDados(paciente.tipoConsulta);
@@ -482,7 +499,7 @@ function toggleRiscoItem(i){
 
 // ---- Genérico: retorno/especialistas com preenchimento automático do Plano (usado por todo protocolo exceto HAS) ----
 function inicializarProtocoloDados(chave){
-  const proto = CONSULTAS_PADRAO[chave];
+  const proto = protocoloEfetivo(chave);
   const def = (proto && proto.planoDefault) || { retornoValor:'', retornoUnidade:'meses' };
   paciente.protocoloDados[chave] = {
     retornoValor: def.retornoValor || '', retornoUnidade: def.retornoUnidade || 'meses',
@@ -619,7 +636,7 @@ function setExamesSolicitadosHAS(v){
 
 function renderEncaminhamentosSecao(){
   if(!paciente.tipoConsulta) return '';
-  const proto = CONSULTAS_PADRAO[paciente.tipoConsulta];
+  const proto = protocoloEfetivo(paciente.tipoConsulta);
   if(!proto) return '';
   if(!paciente.protocoloDados[paciente.tipoConsulta]){
     inicializarProtocoloDados(paciente.tipoConsulta);
@@ -644,7 +661,7 @@ function renderEncaminhamentosSecao(){
 
 function sugestaoAvaliacaoAtual(){
   if(paciente.tipoConsulta){
-    const proto = CONSULTAS_PADRAO[paciente.tipoConsulta];
+    const proto = protocoloEfetivo(paciente.tipoConsulta);
     if(proto && proto.sugestaoAvaliacao) return 'Hipótese diagnóstica — ' + proto.sugestaoAvaliacao;
   }
   return 'Hipótese diagnóstica';
@@ -845,6 +862,100 @@ function regenerarEvolucao(){
   paciente.evolucaoGerada = gerarEvolucao(paciente);
   render();
   showToast('Evolução regenerada a partir dos dados atuais');
+}
+
+// ===================== TELA: CONFIGURAÇÕES DOS PROTOCOLOS =====================
+function renderConfiguracoes(){
+  const linhas = Object.entries(CONSULTAS_PADRAO).filter(([k])=>k!=='geral').map(([k,v])=>{
+    const editado = protocolosCustom[k] ? ' · editado por você' : '';
+    const qtd = v.obrigatorios ? `${v.obrigatorios.length} itens` : 'Protocolo ainda não revisado';
+    return `<div class="pcard" onclick="irParaConfiguracoesProtocolo('${k}')">
+      <div class="pinfo">
+        <div class="pname">${escapeHtml(v.label)}</div>
+        <div class="pmeta">${qtd}${editado}</div>
+      </div>
+      <div class="pchev">›</div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="topbar">
+      <button class="backbtn" onclick="irParaHome()">‹</button>
+      <h1>Protocolos</h1>
+    </div>
+    <main>
+      <p class="hint" style="margin-bottom:12px;">Toque num protocolo para editar os itens a avaliar e os sinais de alarme.</p>
+      ${linhas}
+    </main>
+  `;
+}
+
+function renderConfiguracoesProtocolo(){
+  const chave = tela.chave;
+  const proto = protocoloEfetivo(chave);
+  if(!proto) return renderConfiguracoes();
+  const obrig = proto.obrigatorios || [];
+  const riscos = proto.riscos || [];
+  const editadoObrig = !!(protocolosCustom[chave] && protocolosCustom[chave].obrigatorios !== undefined);
+  const editadoRiscos = !!(protocolosCustom[chave] && protocolosCustom[chave].riscos !== undefined);
+
+  const listaHtml = (itens, tipo) => itens.length ? itens.map((item, i) => `
+    <div class="labeditrow" style="grid-template-columns:1fr 26px;">
+      <input type="text" value="${escapeHtml(item)}" oninput="editarItemProtocolo('${tipo}', ${i}, this.value)">
+      <button class="rm" onclick="removerItemProtocolo('${tipo}', ${i})">✕</button>
+    </div>
+  `).join('') : `<p class="hint">Nenhum item cadastrado.</p>`;
+
+  return `
+    <div class="topbar">
+      <button class="backbtn" onclick="irParaConfiguracoes()">‹</button>
+      <h1>${escapeHtml(proto.label)}</h1>
+    </div>
+    <main>
+      <div class="section"><div class="section-body open">
+        <label class="flabel">Itens a avaliar${editadoObrig ? ' (editado)' : ''}</label>
+        ${listaHtml(obrig, 'obrigatorios')}
+        <div class="btnrow"><button class="btn sm" onclick="adicionarItemProtocolo('obrigatorios')">+ Adicionar item</button></div>
+
+        <label class="flabel" style="margin-top:20px;">Sinais de alarme${editadoRiscos ? ' (editado)' : ''}</label>
+        ${listaHtml(riscos, 'riscos')}
+        <div class="btnrow"><button class="btn sm" onclick="adicionarItemProtocolo('riscos')">+ Adicionar sinal de alarme</button></div>
+
+        ${(editadoObrig || editadoRiscos) ? `<div class="btnrow" style="margin-top:20px;"><button class="btn danger sm" onclick="restaurarProtocoloPadrao()">Restaurar padrão deste protocolo</button></div>` : ''}
+      </div></div>
+      ${proto.fonte ? `<p class="hint">Fonte original: ${escapeHtml(proto.fonte)}</p>` : ''}
+    </main>
+  `;
+}
+
+function garantirCustom(chave){
+  if(!protocolosCustom[chave]) protocolosCustom[chave] = {};
+  const c = protocolosCustom[chave];
+  const base = CONSULTAS_PADRAO[chave];
+  if(c.obrigatorios === undefined) c.obrigatorios = [...(base.obrigatorios || [])];
+  if(c.riscos === undefined) c.riscos = [...(base.riscos || [])];
+  return c;
+}
+function editarItemProtocolo(tipo, i, valor){
+  const c = garantirCustom(tela.chave);
+  c[tipo][i] = valor;
+  salvarProtocolosCustom();
+}
+function removerItemProtocolo(tipo, i){
+  const c = garantirCustom(tela.chave);
+  c[tipo].splice(i, 1);
+  salvarProtocolosCustom();
+  render();
+}
+function adicionarItemProtocolo(tipo){
+  const c = garantirCustom(tela.chave);
+  c[tipo].push('');
+  salvarProtocolosCustom();
+  render();
+}
+async function restaurarProtocoloPadrao(){
+  delete protocolosCustom[tela.chave];
+  await salvarProtocolosCustom();
+  render();
 }
 
 // ===================== INIT =====================
