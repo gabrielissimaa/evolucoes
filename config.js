@@ -102,6 +102,8 @@ const CONSULTAS_PADRAO = {
     label: 'Idoso',
     fonte: 'SMS-RJ/SUBPAV — Instrumentos de Avaliação da Pessoa Idosa na APS, 2024. Instrumento de referência: IVCF-20 (Índice de Vulnerabilidade Clínico-Funcional-20).',
     alerta: 'Este checklist cobre as 8 dimensões do IVCF-20 em nível de domínio — para a pontuação de risco oficial (baixo/moderado/alto), aplique o instrumento completo (20 itens) no prontuário eletrônico. Baixo risco (0-6 pts): reavaliação anual. Moderado/alto risco (≥7 pts, "pré-frágil"/"frágil"): reavaliação semestral.',
+    sugestaoAvaliacao: 'Ex: idoso robusto / pré-frágil / frágil, conforme IVCF-20',
+    sugestaoEncaminhamentos: 'Ex: geriatria, fisioterapia, nutrição',
     obrigatorios: [
       'Idade e autopercepção da saúde',
       'AVD/AIVD: independência para atividades básicas e instrumentais',
@@ -126,6 +128,9 @@ const CONSULTAS_PADRAO = {
     label: 'Hipertensão (HAS)',
     fonte: 'Base: SMS-RJ/SUBPAV — Guia de Referência Rápida: Hipertensão, 1ª ed. 2016. Metas de PA atualizadas conforme a Diretriz Brasileira de Hipertensão Arterial 2020.',
     alerta: 'O texto-base do SUBPAV é de 2016 e usa uma classificação de estágios mais antiga. A Diretriz Brasileira de Hipertensão Arterial 2020 reclassificou os níveis (a antiga "PA normal" virou "PA ótima"; pré-hipertensão hoje = PAS 130–139 e/ou PAD 85–89 mmHg) e atualizou as metas de tratamento: <140/90 mmHg para risco baixo/moderado; <130/80 mmHg para doença arterial coronariana, insuficiência cardíaca, AVC prévio, doença renal crônica ou diabetes. Confirme se há uma edição SUBPAV mais recente antes de usar em decisão clínica.',
+    sugestaoAvaliacao: 'Ex: HAS estágio 1, controlada',
+    sugestaoEncaminhamentos: 'Ex: cardiologia, oftalmologia',
+    planoDefault: { retornoValor: '6', retornoUnidade: 'meses' },
     obrigatorios: [
       'Aferição da PA (técnica correta, 2 medidas)',
       'Investigar lesão em órgão-alvo: EAS (proteinúria/hematúria)',
@@ -146,6 +151,8 @@ const CONSULTAS_PADRAO = {
     label: 'Saúde Mental — Ansiedade/Pânico',
     fonte: 'SMS-RJ/SUBPAV — Guia de Referência Rápida: Ansiedade Generalizada e Transtorno de Pânico em Adultos, 1ª ed. 2016.',
     alerta: 'O guia usa critérios do DSM-IV-TR (2016). O DSM-5/5-TR é o padrão atual; os critérios centrais de ansiedade generalizada mudaram pouco, mas confirme critérios exatos em fonte atualizada antes de fechar diagnóstico.',
+    sugestaoAvaliacao: 'Ex: transtorno de ansiedade generalizada, sem comorbidades identificadas',
+    sugestaoEncaminhamentos: 'Ex: psicoterapia (preferencialmente TCC); psiquiatria se resposta inadequada',
     obrigatorios: [
       'Preocupação/ansiedade excessiva na maioria dos dias, por ≥ 6 meses',
       'Dificuldade em controlar a preocupação',
@@ -165,6 +172,8 @@ const CONSULTAS_PADRAO = {
   saude_mental_depressao: {
     label: 'Saúde Mental — Depressão',
     fonte: 'SMS-RJ/SUBPAV — Guia de Referência Rápida: Depressão, 1ª ed. 2016 (critérios DSM-IV-TR; o próprio guia nota que não houve alteração significativa no DSM-5).',
+    sugestaoAvaliacao: 'Ex: episódio depressivo leve/moderado/grave, primeiro episódio ou recorrente',
+    sugestaoEncaminhamentos: 'Ex: psicoterapia; psiquiatria; CAPS se risco de suicídio',
     obrigatorios: [
       'Teste das 2 perguntas: humor deprimido a maior parte do tempo? Perda de interesse/prazer?',
       'Humor deprimido a maior parte do dia, quase todos os dias',
@@ -189,6 +198,8 @@ const CONSULTAS_PADRAO = {
     label: 'Hormonização (pessoas trans, travestis, não binárias)',
     fonte: 'SMS-RJ/SUBPAV — Hormonização para Pessoas Trans, Travestis e Não Binárias na APS, 2024.',
     alerta: 'Monitorização laboratorial completa (feminilizante x masculinizante) tem tabelas específicas no guia original — confira o quadro de exames obrigatórios x consideráveis conforme o tipo de hormonização antes de fechar a solicitação.',
+    sugestaoAvaliacao: 'Ex: em hormonização feminilizante/masculinizante há X meses, boa resposta, sem efeitos adversos relevantes',
+    sugestaoEncaminhamentos: 'Ex: endocrinologia; cirurgia (se indicado e desejado)',
     obrigatorios: [
       'Rastrear contraindicações e possíveis interações medicamentosas',
       'Exame físico focal: peso, altura, e demais achados relevantes',
