@@ -91,6 +91,8 @@ function novoPaciente({ nome, leito, contexto, genero }){
     hppDetalhada:{ doencasPrevias:'', cirurgias:'', alergias:'', medicamentos:'' },
 
     subjetivo:'', avaliacao:'', plano:'',
+    ocupacao:'', atividadeFisica:{ pratica:null, detalhe:'' },
+    tipoConsulta:'', consultaChecklist:{},
 
     evolucaoGerada:'',
   };
@@ -113,6 +115,13 @@ async function arquivarPaciente(id){
   if(!p) return;
   p.ativo = false;
   await salvarPaciente(p);
+}
+
+async function excluirPacienteDefinitivo(id){
+  await dbDelete('pacientes', id);
+  if(window.excluirDoSupabase){
+    try{ await window.excluirDoSupabase(id); }catch(e){ console.warn('Falha ao excluir remotamente:', e.message); }
+  }
 }
 
 // ---- Fila de sincronização (placeholder — plugamos o Supabase depois) ----
