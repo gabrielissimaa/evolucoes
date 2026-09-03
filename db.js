@@ -92,7 +92,7 @@ function novoPaciente({ nome, leito, contexto, genero }){
 
     subjetivo:'', avaliacao:'', plano:'',
     ocupacao:'', atividadeFisica:{ pratica:null, detalhe:'' },
-    tipoConsulta:'', consultaChecklist:{},
+    tipoConsulta:'', consultaChecklist:{}, riscoChecklist:{}, protocoloDados:{},
     protocoloHAS:{ pa1:'', pa2:'', eas:'', glicemiaJejum:'', sodio:'', potassio:'', creatinina:'', tfg:'',
                    colesterolTotal:'', hdl:'', triglicerideos:'', fundoscopia:'', ecg:'',
                    orientacaoEstiloVida:{ feita:null, detalhe:'' },
