@@ -454,8 +454,10 @@ function renderTipoConsultaSecao(){
     corpo += `<label class="flabel">Itens a avaliar (${escapeHtml(proto.label)})</label>`;
     corpo += proto.obrigatorios.map((item, i)=>{
       const on = paciente.consultaChecklist && paciente.consultaChecklist[i];
-      return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;" onclick="toggleChecklistItem(${i})">
-        <span style="flex:1;">${escapeHtml(item)}</span>${on?'✓':''}
+      const temInfo = proto.obrigatoriosInfo && proto.obrigatoriosInfo[i];
+      return `<div class="chip ${on?'on':''}" style="display:flex;align-items:center;width:100%;margin-top:6px;">
+        <span style="flex:1;cursor:pointer;" onclick="toggleChecklistItem(${i})">${escapeHtml(item)}${on?' ✓':''}</span>
+        ${temInfo ? `<button class="iconbtn" style="width:26px;height:26px;font-size:13px;margin-left:6px;flex-shrink:0;" onclick="event.stopPropagation(); abrirInfoItemProtocolo('${paciente.tipoConsulta}', ${i})" title="Ver referência">ℹ</button>` : ''}
       </div>`;
     }).join('');
 
@@ -489,6 +491,16 @@ function toggleChecklistItem(i){
   paciente.consultaChecklist[i] = !paciente.consultaChecklist[i];
   scheduleSave();
   render();
+}
+function abrirInfoItemProtocolo(chave, i){
+  const proto = protocoloEfetivo(chave);
+  const texto = proto && proto.obrigatoriosInfo && proto.obrigatoriosInfo[i];
+  if(!texto) return;
+  openModal(`
+    <h3 style="margin:0 0 12px;">${escapeHtml(proto.obrigatorios[i])}</h3>
+    <div style="white-space:pre-wrap;font-size:13.5px;line-height:1.6;color:var(--text2);max-height:60vh;overflow-y:auto;">${escapeHtml(texto)}</div>
+    <div class="btnrow"><button class="btn ghost" style="flex:1" onclick="closeModal()">Fechar</button></div>
+  `);
 }
 function toggleRiscoItem(i){
   if(!paciente.riscoChecklist) paciente.riscoChecklist = {};
