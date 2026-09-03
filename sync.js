@@ -59,7 +59,9 @@ async function mostrarTelaCorreta(){
   if(usuarioAtual){
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    await carregarProtocolosCustom();
     await sincronizarAoEntrar();
+    await sincronizarConfiguracoes();
     render();
   } else {
     document.getElementById('authScreen').classList.remove('hidden');
@@ -93,6 +95,35 @@ window.excluirDoSupabase = async function(id){
   }).eq('id', id);
   if(error) throw error;
 };
+
+// ---- Sync: customizações dos protocolos (itens a avaliar / sinais de alarme editados) ----
+window.enviarConfigParaSupabase = async function(chave, valor){
+  if(!usuarioAtual) return;
+  const { error } = await sb.from('configuracoes').upsert({
+    user_id: usuarioAtual.id, chave, valor, atualizado_em: new Date().toISOString(),
+  }, { onConflict: 'user_id,chave' });
+  if(error) throw error;
+};
+
+async function sincronizarConfiguracoes(){
+  if(!navigator.onLine) return;
+  try{
+    const { data, error } = await sb.from('configuracoes').select('*').eq('chave','protocolos_customizados').maybeSingle();
+    if(error) throw error;
+    if(data){
+      const local = await dbGet('configuracoes', 'protocolos_customizados');
+      if(!local || new Date(data.atualizado_em) > new Date(local.atualizadoEm)){
+        protocolosCustom = data.valor || {};
+        await dbPut('configuracoes', { chave:'protocolos_customizados', valor: protocolosCustom, atualizadoEm: data.atualizado_em });
+      }
+    } else if(protocolosCustom && Object.keys(protocolosCustom).length){
+      // existe customização local mas ainda não subiu — envia agora
+      await window.enviarConfigParaSupabase('protocolos_customizados', protocolosCustom);
+    }
+  }catch(e){
+    console.warn('Sync de configurações falhou (seguindo offline):', e.message);
+  }
+}
 
 // ---- Sync: ao entrar, busca os pacientes do Supabase e mescla com o local ----
 async function sincronizarAoEntrar(){
