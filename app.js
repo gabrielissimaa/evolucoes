@@ -322,6 +322,67 @@ function confirmarLabColado(){
   showToast('Exame adicionado');
 }
 
+function renderHdaDetalhadaSecao(){
+  const h = paciente.hdaDetalhada;
+  return secaoWrap('hdaDet','HDA detalhada (gera o texto corrido automaticamente)', `
+    ${campoTexto('Início','hdaDetalhada.inicio','Ex: ontem, há 3 dias')}
+    ${campoTexto('Evolução','hdaDetalhada.evolucao','Ex: piora, melhora, estável')}
+    ${campoTexto('Localização','hdaDetalhada.localizacao')}
+    <div class="row2">${campoTexto('Intensidade (0-10)','hdaDetalhada.intensidade')}${campoTexto('Duração/frequência','hdaDetalhada.duracao')}</div>
+    ${campoArea('Sintomas associados (separe por vírgula)','hdaDetalhada.sintomasAssociados')}
+    <div class="row2">${campoTexto('Fatores de melhora','hdaDetalhada.fatoresMelhora')}${campoTexto('Fatores de piora','hdaDetalhada.fatoresPiora')}</div>
+    ${campoArea('Tratamentos já realizados e resposta','hdaDetalhada.tratamentos')}
+    ${campoTexto('Impacto na rotina','hdaDetalhada.impacto')}
+    <p class="hint">Deixe em branco (ou "-") o que não se aplica — só entra no texto o que for preenchido.</p>
+  `);
+}
+
+function setAtividadeFisica(v){
+  paciente.atividadeFisica.pratica = v;
+  scheduleSave();
+  render();
+}
+
+function renderTipoConsultaSecao(){
+  const chips = Object.entries(CONSULTAS_PADRAO).map(([k,v])=>{
+    const on = paciente.tipoConsulta === k;
+    return `<div class="chip ${on?'on':''}" onclick="selecionarTipoConsulta('${k}')">${v.label}</div>`;
+  }).join('');
+
+  let corpo = `<div class="chipwrap">${chips}</div>`;
+  const proto = paciente.tipoConsulta ? CONSULTAS_PADRAO[paciente.tipoConsulta] : null;
+
+  if(proto && proto.obrigatorios){
+    if(proto.alerta){
+      corpo += `<div class="qitem" style="border-color:var(--warn);margin-top:12px;"><strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong><p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p></div>`;
+    }
+    corpo += `<label class="flabel">Itens obrigatórios desta consulta (${escapeHtml(proto.label)})</label>`;
+    corpo += proto.obrigatorios.map((item, i)=>{
+      const on = paciente.consultaChecklist && paciente.consultaChecklist[i];
+      return `<div class="chip ${on?'on':''}" style="display:flex;width:100%;margin-top:6px;" onclick="toggleChecklistItem(${i})">
+        <span style="flex:1;">${escapeHtml(item)}</span>${on?'✓':''}
+      </div>`;
+    }).join('');
+    if(proto.fonte) corpo += `<p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>`;
+  } else if(proto){
+    corpo += `<p class="hint" style="margin-top:12px;">Protocolo de "${escapeHtml(proto.label)}" ainda não foi revisado e adicionado ao app — em breve.</p>`;
+  }
+
+  return secaoWrap('tipoConsulta','Tipo de consulta (protocolo SUBPAV)', corpo);
+}
+function selecionarTipoConsulta(k){
+  paciente.tipoConsulta = (paciente.tipoConsulta === k) ? '' : k;
+  paciente.consultaChecklist = {};
+  scheduleSave();
+  render();
+}
+function toggleChecklistItem(i){
+  if(!paciente.consultaChecklist) paciente.consultaChecklist = {};
+  paciente.consultaChecklist[i] = !paciente.consultaChecklist[i];
+  scheduleSave();
+  render();
+}
+
 // ===================== TELA: REGISTRO (por contexto) =====================
 function renderRegistro(){
   const cor = CONTEXTOS[paciente.contexto].cor;
@@ -340,6 +401,7 @@ function renderRegistro(){
       ${campoTexto('Diurese (tipo)','infoFixa.diurese','Espontânea')}
     `);
     secoes += renderQueixasSecao();
+    secoes += renderHdaDetalhadaSecao();
     secoes += secaoWrap('hpp','HPP / medicações / hábitos', `
       ${campoArea('HPP (história patológica pregressa)','infoFixa.hpp')}
       ${campoArea('MUC (medicações em uso contínuo)','infoFixa.muc')}
@@ -369,16 +431,7 @@ function renderRegistro(){
   else if(paciente.contexto === 'emergencia'){
     secoes += secaoWrap('qp','Queixa principal', `${campoTexto('QP','qp')}`);
     secoes += renderQueixasSecao();
-    secoes += secaoWrap('hda','HDA detalhada', `
-      ${campoTexto('Início','hdaDetalhada.inicio')}
-      ${campoTexto('Evolução','hdaDetalhada.evolucao')}
-      ${campoTexto('Localização','hdaDetalhada.localizacao')}
-      <div class="row2">${campoTexto('Intensidade (0-10)','hdaDetalhada.intensidade')}${campoTexto('Duração/frequência','hdaDetalhada.duracao')}</div>
-      ${campoArea('Sintomas associados','hdaDetalhada.sintomasAssociados')}
-      <div class="row2">${campoTexto('Fatores de melhora','hdaDetalhada.fatoresMelhora')}${campoTexto('Fatores de piora','hdaDetalhada.fatoresPiora')}</div>
-      ${campoArea('Tratamentos já realizados e resposta','hdaDetalhada.tratamentos')}
-      ${campoTexto('Impacto na rotina','hdaDetalhada.impacto')}
-    `);
+    secoes += renderHdaDetalhadaSecao();
     secoes += secaoWrap('hpp2','HPP', `
       ${campoArea('Doenças prévias','hppDetalhada.doencasPrevias')}
       ${campoArea('Cirurgias/internações','hppDetalhada.cirurgias')}
@@ -397,10 +450,19 @@ function renderRegistro(){
   else if(paciente.contexto === 'clinica'){
     secoes += secaoWrap('qp','Queixa principal', `${campoTexto('QP','qp')}`);
     secoes += renderQueixasSecao();
+    secoes += renderHdaDetalhadaSecao();
+    secoes += secaoWrap('perfil','Perfil', `
+      ${campoTexto('Ocupação','ocupacao')}
+      <label class="flabel">Pratica atividade física?</label>
+      <div class="togglebar">
+        <button class="${paciente.atividadeFisica.pratica===false?'on':''}" onclick="setAtividadeFisica(false)">Não</button>
+        <button class="${paciente.atividadeFisica.pratica===true?'on':''}" onclick="setAtividadeFisica(true)">Sim</button>
+      </div>
+      ${paciente.atividadeFisica.pratica ? campoTexto('Qual atividade / frequência','atividadeFisica.detalhe') : ''}
+    `);
     secoes += secaoWrap('subj','Subjetivo (complemento livre)', `${campoArea('Relato livre do paciente','subjetivo')}`);
-    secoes += secaoWrap('ssvv2','Sinais vitais', `<div class="row3">${campoTexto('PA','ssvv.pa')}${campoTexto('FC (bpm)','ssvv.bpm')}${campoTexto('Sat O2 %','ssvv.sat')}</div>`);
+    secoes += renderTipoConsultaSecao();
     secoes += renderExameFisicoSecao();
-    secoes += renderLabSecao();
     secoes += secaoWrap('avplan','Avaliação e plano', `
       ${campoArea('Avaliação','avaliacao')}
       ${campoArea('Plano','plano')}
@@ -440,9 +502,25 @@ function abrirMenuPaciente(){
     <h3 style="margin:0 0 14px;">${escapeHtml(paciente.nome)}</h3>
     <div class="btnrow" style="flex-direction:column;">
       <button class="btn danger" style="width:100%" onclick="confirmarArquivar()">Arquivar / dar alta deste paciente</button>
+      <button class="btn danger" style="width:100%" onclick="confirmarExclusao()">Excluir definitivamente</button>
       <button class="btn ghost" style="width:100%" onclick="closeModal()">Fechar</button>
     </div>
   `);
+}
+function confirmarExclusao(){
+  openModal(`
+    <h3 style="margin:0 0 10px;">Excluir ${escapeHtml(paciente.nome)}?</h3>
+    <p class="hint" style="margin-bottom:16px;">Isso apaga o registro permanentemente (local e na nuvem) — não é possível desfazer. Use "Arquivar" se só quiser tirar da lista ativa.</p>
+    <div class="btnrow">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn danger" style="flex:1" onclick="excluirEVoltar()">Excluir</button>
+    </div>
+  `);
+}
+async function excluirEVoltar(){
+  await excluirPacienteDefinitivo(paciente.id);
+  closeModal();
+  irParaHome();
 }
 function confirmarArquivar(){
   openModal(`
@@ -478,6 +556,9 @@ function renderEvolucaoTela(){
       </div>
       <div class="btnrow">
         <button class="btn danger" style="flex:1" onclick="confirmarArquivar()">Concluir e arquivar paciente</button>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost" style="flex:1" onclick="confirmarExclusao()">Excluir definitivamente</button>
       </div>
     </main>
   `;
