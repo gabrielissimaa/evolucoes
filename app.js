@@ -757,6 +757,9 @@ function renderRegistro(){
 
   else if(paciente.contexto === 'clinica'){
     secoes += renderTipoConsultaSecao();
+    if(paciente.tipoConsulta === 'has'){
+      secoes += renderProtocoloHASSecao();
+    }
     secoes += secaoWrap('perfil','Perfil', `
       ${campoTexto('Ocupação','ocupacao')}
       <label class="flabel">Pratica atividade física?</label>
@@ -768,9 +771,6 @@ function renderRegistro(){
     `);
     secoes += secaoWrap('subj','S — Subjetivo', `${campoArea('Relato do paciente (queixas, história, o que trouxe à consulta)','subjetivo')}`);
     secoes += renderEncaminhamentosSecao();
-    if(paciente.tipoConsulta === 'has'){
-      secoes += renderProtocoloHASSecao();
-    }
     secoes += renderExameFisicoSecao();
     secoes += secaoWrap('avplan','A / P — Avaliação e Plano', `
       ${campoArea('Avaliação','avaliacao', sugestaoAvaliacaoAtual())}
