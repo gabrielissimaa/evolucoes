@@ -56,14 +56,26 @@ function montarHdaProse(p){
   return [frase, ...extras].join(' ').toUpperCase();
 }
 
+// Converte um texto padrão (armazenado em CAIXA ALTA) para texto normal/corrido,
+// capitalizando apenas o início do texto e depois de cada ponto final ou parágrafo.
+// Usado só para texto livre digitado pelo médico que porventura venha em maiúsculas.
+function paraTextoNormal(texto){
+  let t = texto.toLowerCase();
+  t = t.replace(/(^|\n\n|\. )([a-zà-úãõâêîôûáéíóúç])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+  return t;
+}
+
 function montarExameFisicoTexto(p){
+  const clinica = p.contexto === 'clinica';
   const linhas = [];
   for(const s of SISTEMAS){
     const alt = p.exameFisico.alterados[s.key];
     if(!p.exameFisico.normal && alt && alt.on && alt.texto && alt.texto.trim()){
       linhas.push(`${s.abrev ? s.abrev+': ' : ''}${alt.texto.trim()}`.trim());
     } else {
-      linhas.push(textoExameNormal(s.key, p.exameFisico.genero || p.genero || 'F'));
+      linhas.push(clinica
+        ? textoExameNormalLegivel(s.key, p.exameFisico.genero || p.genero || 'F')
+        : textoExameNormal(s.key, p.exameFisico.genero || p.genero || 'F'));
     }
   }
   let texto = linhas.join('\n\n');
@@ -71,6 +83,15 @@ function montarExameFisicoTexto(p){
     texto += '\n\n' + p.exameFisico.observacoes.trim();
   }
   return texto;
+}
+
+// Junta uma lista em português: "a, b e c" (enumeração natural, não separada por ; ou -)
+function enumerarPt(lista){
+  if(lista.length === 1) return lista[0];
+  return lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1];
+}
+function minusculaInicial(str){
+  return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
 // Monta o bloco de laboratório no formato que você já usa no seu prompt:
@@ -186,16 +207,18 @@ function gerarEvolucaoClinica(p){
 S — SUBJETIVO
 ${montarPerfilClinicaTexto(p)}
 ${p.subjetivo ? p.subjetivo.trim() : '(nada relatado)'}
+${montarSinaisAlarmeTexto(p)}
 
 O — OBJETIVO
 ${montarExameFisicoTexto(p)}
-${montarChecklistConsultaTexto(p)}
+${p.tipoConsulta === 'has' ? montarAvaliacaoHAS(p) : montarObservacoesProtocoloTexto(p)}
 
 A — AVALIAÇÃO
 ${linhaOuTraco(p.avaliacao)}
 
 P — PLANO
-${linhaOuTraco(p.plano)}`;
+${linhaOuTraco(p.plano)}
+${montarItensAvaliadosTexto(p)}`;
 }
 
 function montarPerfilClinicaTexto(p){
@@ -211,25 +234,33 @@ function montarPerfilClinicaTexto(p){
   return linhas.length ? linhas.join('\n') : '';
 }
 
-function montarChecklistConsultaTexto(p){
-  if(!p.tipoConsulta) return '';
-  if(p.tipoConsulta === 'has') return montarAvaliacaoHAS(p);
+// Itens do checklist "obrigatórios" marcados — vão para o Plano, como registro de conferência.
+function montarItensAvaliadosTexto(p){
+  if(!p.tipoConsulta || p.tipoConsulta === 'has') return '';
   const proto = CONSULTAS_PADRAO[p.tipoConsulta];
   if(!proto || !proto.obrigatorios) return '';
-  const partes = [];
   const marcados = (proto.obrigatorios || []).filter((_,i)=> p.consultaChecklist && p.consultaChecklist[i]);
-  if(marcados.length){
-    partes.push(`Avaliados nesta consulta, conforme protocolo ${proto.label}: ${marcados.join('; ')}.`);
-  }
+  if(!marcados.length) return '';
+  return `\nCheco, conforme protocolo: ${marcados.join('; ')}.`;
+}
+
+// Sinais de alarme marcados — vão ao final do Subjetivo, em frase corrida.
+function montarSinaisAlarmeTexto(p){
+  if(!p.tipoConsulta || p.tipoConsulta === 'has') return '';
+  const proto = CONSULTAS_PADRAO[p.tipoConsulta];
+  if(!proto || !proto.riscos) return '';
   const riscosMarcados = (proto.riscos || []).filter((_,i)=> p.riscoChecklist && p.riscoChecklist[i]);
-  if(riscosMarcados.length){
-    partes.push(`Sinais de alarme identificados: ${riscosMarcados.join('; ')}.`);
-  }
+  if(!riscosMarcados.length) return '';
+  const lista = enumerarPt(riscosMarcados.map(minusculaInicial));
+  return `\nPaciente apresenta os seguintes sinais de alarme: ${lista}.`;
+}
+
+// Observações livres do protocolo (campo "Observações do protocolo")
+function montarObservacoesProtocoloTexto(p){
+  if(!p.tipoConsulta) return '';
   const pd = p.protocoloDados && p.protocoloDados[p.tipoConsulta];
-  if(pd && !campoVazio(pd.observacoes)){
-    partes.push(pd.observacoes.trim());
-  }
-  return partes.length ? '\n' + partes.join(' ') : '';
+  if(!pd || campoVazio(pd.observacoes)) return '';
+  return '\n' + pd.observacoes.trim();
 }
 
 function montarAvaliacaoHAS(p){
