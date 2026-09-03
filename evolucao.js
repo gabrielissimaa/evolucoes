@@ -15,6 +15,47 @@ function montarQueixasTexto(p){
   return texto;
 }
 
+// Considera vazio texto em branco ou preenchido só com "-" (convenção usada nos campos condicionais)
+function campoVazio(v){
+  return !v || !String(v).trim() || String(v).trim() === '-';
+}
+
+// Monta um parágrafo corrido de HDA a partir da queixa principal + campos estruturados,
+// pulando qualquer campo vazio. Retorna em maiúsculas (padrão dos seus registros).
+function montarHdaProse(p){
+  const h = p.hdaDetalhada || {};
+  let queixaBase = '';
+  if(!campoVazio(p.qp)) queixaBase = p.qp.trim();
+  if(!queixaBase){
+    const primeira = QUEIXAS_COMUNS.find(q => p.queixas[q.key] && p.queixas[q.key].on);
+    if(primeira){
+      const det = p.queixas[primeira.key].detalhe;
+      queixaBase = (det && det.trim()) ? det.trim() : primeira.label;
+    }
+  }
+  if(!queixaBase) return '';
+
+  let frase = `Paciente vem ao serviço com queixa de ${queixaBase.toLowerCase()}`;
+  if(!campoVazio(h.inicio)) frase += `, iniciada ${h.inicio.toLowerCase()}`;
+  if(!campoVazio(h.evolucao)) frase += `, com evolução de ${h.evolucao.toLowerCase()}`;
+  if(!campoVazio(h.localizacao)) frase += `, de localização ${h.localizacao.toLowerCase()}`;
+  if(!campoVazio(h.intensidade)) frase += `, EVA ${h.intensidade}/10`;
+  if(!campoVazio(h.duracao)) frase += `, ${h.duracao.toLowerCase()}`;
+  if(!campoVazio(h.sintomasAssociados)){
+    const itens = h.sintomasAssociados.split(',').map(s=>s.trim()).filter(Boolean);
+    frase += `, associada a ${itens.join(' e ')}`;
+  }
+  if(!campoVazio(h.fatoresMelhora)) frase += `, que melhora com ${h.fatoresMelhora.toLowerCase()}`;
+  if(!campoVazio(h.fatoresPiora)) frase += `, que piora com ${h.fatoresPiora.toLowerCase()}`;
+  frase += '.';
+
+  const extras = [];
+  if(!campoVazio(h.tratamentos)) extras.push(`Tratamentos já realizados: ${h.tratamentos.trim()}.`);
+  if(!campoVazio(h.impacto)) extras.push(`Impacto na rotina: ${h.impacto.trim()}.`);
+
+  return [frase, ...extras].join(' ').toUpperCase();
+}
+
 function montarExameFisicoTexto(p){
   const linhas = [];
   for(const s of SISTEMAS){
@@ -70,9 +111,7 @@ ${p.nome.toUpperCase()} - LEITO ${p.leito}
 #DIURESE: ${linhaOuTraco(f.diurese)}
 
 #HDA:
-${montarQueixasTexto(p)}
-
-#HPP: ${linhaOuTraco(f.hpp)}
+${montarHdaProse(p) || montarQueixasTexto(p)}
 
 #MUC: ${linhaOuTraco(f.muc)}
 
@@ -119,18 +158,7 @@ ${p.nome.toUpperCase()}${p.leito ? ' - LEITO '+p.leito : ''}
 ${linhaOuTraco(p.qp)}
 
 #HDA:
-${montarQueixasTexto(p)}
-
-Início: ${linhaOuTraco(h.inicio)}
-Evolução: ${linhaOuTraco(h.evolucao)}
-Localização: ${linhaOuTraco(h.localizacao)}
-Intensidade (0–10): ${linhaOuTraco(h.intensidade)}
-Duração/frequência: ${linhaOuTraco(h.duracao)}
-Sintomas associados: ${linhaOuTraco(h.sintomasAssociados)}
-Fatores de melhora: ${linhaOuTraco(h.fatoresMelhora)}
-Fatores de piora: ${linhaOuTraco(h.fatoresPiora)}
-Tratamentos já realizados e resposta: ${linhaOuTraco(h.tratamentos)}
-Impacto na rotina: ${linhaOuTraco(h.impacto)}
+${montarHdaProse(p) || montarQueixasTexto(p)}
 
 #HPP:
 Doenças prévias: ${linhaOuTraco(pp.doencasPrevias)}
@@ -156,23 +184,41 @@ function gerarEvolucaoClinica(p){
   return `${p.nome.toUpperCase()}
 
 S — SUBJETIVO
-${linhaOuTraco(p.qp)}
-
-${montarQueixasTexto(p)}
-
+${montarHdaProse(p) || montarQueixasTexto(p)}
+${montarPerfilClinicaTexto(p)}
 ${p.subjetivo ? p.subjetivo.trim() : ''}
 
 O — OBJETIVO
-${p.ssvv && (p.ssvv.pa || p.ssvv.bpm || p.ssvv.sat) ? `PA ${linhaOuTraco(p.ssvv.pa)} | ${linhaOuTraco(p.ssvv.bpm)} bpm | Sat O2 ${linhaOuTraco(p.ssvv.sat)}\n` : ''}
 ${montarExameFisicoTexto(p)}
-
-${p.labBlocos && p.labBlocos.length ? '\nExames:\n' + montarLabTexto(p) : ''}
+${montarChecklistConsultaTexto(p)}
 
 A — AVALIAÇÃO
 ${linhaOuTraco(p.avaliacao)}
 
 P — PLANO
 ${linhaOuTraco(p.plano)}`;
+}
+
+function montarPerfilClinicaTexto(p){
+  const linhas = [];
+  if(!campoVazio(p.ocupacao)) linhas.push(`Ocupação: ${p.ocupacao.trim()}`);
+  if(p.atividadeFisica){
+    if(p.atividadeFisica.pratica){
+      linhas.push(`Pratica atividade física${p.atividadeFisica.detalhe ? ': '+p.atividadeFisica.detalhe.trim() : ''}`);
+    } else if(p.atividadeFisica.pratica === false){
+      linhas.push('Sedentário(a)');
+    }
+  }
+  return linhas.length ? linhas.join('\n') : '';
+}
+
+function montarChecklistConsultaTexto(p){
+  if(!p.tipoConsulta) return '';
+  const proto = CONSULTAS_PADRAO[p.tipoConsulta];
+  if(!proto || !proto.obrigatorios) return '';
+  const marcados = (proto.obrigatorios || []).filter((_,i)=> p.consultaChecklist && p.consultaChecklist[i]);
+  if(!marcados.length) return '';
+  return `\nItens avaliados nesta consulta (protocolo ${proto.label}):\n` + marcados.map(m=>`- ${m}`).join('\n');
 }
 
 function gerarEvolucao(p){
