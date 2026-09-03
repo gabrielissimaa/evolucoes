@@ -93,10 +93,13 @@ window.excluirDoSupabase = async function(id){
 // ---- Sync: ao entrar, busca os pacientes ativos do Supabase e mescla com o local ----
 async function sincronizarAoEntrar(){
   if(!navigator.onLine) return;
+  await processarExclusoesPendentes(); // tenta confirmar exclusões que ficaram pendentes
   try{
+    const pendentes = new Set((await listarExclusoesPendentes()).map(x=>x.pacienteId));
     const { data: remotos, error } = await sb.from('pacientes').select('*').eq('ativo', true);
     if(error) throw error;
     for(const r of (remotos||[])){
+      if(pendentes.has(r.id)) continue; // ainda não confirmamos a exclusão no servidor — não readiciona local
       const local = await dbGet('pacientes', r.id);
       if(!local || new Date(r.atualizado_em) > new Date(local.atualizadoEm)){
         await dbPut('pacientes', r.data);
