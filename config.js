@@ -89,3 +89,37 @@ const LAB_OUTROS = [
 ];
 
 const LAB_TODOS = [...LAB_SEMPRE, ...LAB_OUTROS];
+
+// ---- Consultas padrão da Clínica da Família (protocolos SUBPAV) ----
+// IMPORTANTE: só incluímos aqui o que já foi conferido linha a linha contra o material
+// enviado + a diretriz/nota técnica vigente mais recente. Protocolos com obrigatorios:null
+// ainda não foram revisados — evite usar como referência clínica até serem preenchidos.
+const CONSULTAS_PADRAO = {
+  geral:    { label: 'Consulta geral', obrigatorios: null },
+  crianca:  { label: 'Criança', obrigatorios: null,
+              fonte: 'Guia Rápido — Acompanhamento da Criança na APS (SUBPAV, ed. 2026) — ainda não revisado neste app.' },
+  idoso:    { label: 'Idoso', obrigatorios: null,
+              fonte: 'Instrumentos de Avaliação do Idoso na APS (SUBPAV, 2024) — ainda não revisado neste app.' },
+  hiv:      { label: 'HIV', obrigatorios: null,
+              fonte: 'Guia Rápido HIV (SMS-RJ) — ainda não revisado neste app.' },
+  has: {
+    label: 'Hipertensão (HAS)',
+    fonte: 'Base: SMS-RJ/SUBPAV — Guia de Referência Rápida: Hipertensão, 1ª ed. 2016. Metas de PA atualizadas conforme a Diretriz Brasileira de Hipertensão Arterial 2020.',
+    alerta: 'O texto-base do SUBPAV é de 2016 e usa uma classificação de estágios mais antiga. A Diretriz Brasileira de Hipertensão Arterial 2020 reclassificou os níveis (a antiga "PA normal" virou "PA ótima"; pré-hipertensão hoje = PAS 130–139 e/ou PAD 85–89 mmHg) e atualizou as metas de tratamento: <140/90 mmHg para risco baixo/moderado; <130/80 mmHg para doença arterial coronariana, insuficiência cardíaca, AVC prévio, doença renal crônica ou diabetes. Confirme se há uma edição SUBPAV mais recente antes de usar em decisão clínica.',
+    obrigatorios: [
+      'Aferição da PA (técnica correta, 2 medidas)',
+      'Investigar lesão em órgão-alvo: EAS (proteinúria/hematúria)',
+      'Glicemia de jejum, eletrólitos, creatinina, taxa de filtração glomerular',
+      'Perfil lipídico: colesterol total, HDL, triglicerídeos (LDL calculado)',
+      'Fundoscopia (fundo de olho) — se realizada',
+      'ECG de repouso (no diagnóstico e a critério clínico)',
+      'Orientação sobre estilo de vida (dieta, atividade física, álcool)',
+    ],
+  },
+  dm:       { label: 'Diabetes (DM)', obrigatorios: null,
+              fonte: 'Guia Rápido — Diabetes Mellitus (SUBPAV, 2023) — ainda não revisado neste app.' },
+  tb:       { label: 'Tuberculose (TB)', obrigatorios: null,
+              fonte: 'Guia Rápido — Tuberculose (SMS-RJ) — ainda não revisado neste app.' },
+  gestante: { label: 'Gestante', obrigatorios: null,
+              fonte: 'Guia Rápido — Pré-Natal (SUBPAV, 2025) — ainda não revisado neste app.' },
+};
