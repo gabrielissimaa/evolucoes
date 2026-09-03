@@ -195,8 +195,7 @@ A — AVALIAÇÃO
 ${linhaOuTraco(p.avaliacao)}
 
 P — PLANO
-${linhaOuTraco(p.plano)}
-${montarPlanoSugestoesTexto(p)}`;
+${linhaOuTraco(p.plano)}`;
 }
 
 function montarPerfilClinicaTexto(p){
@@ -255,21 +254,6 @@ function montarAvaliacaoHAS(p){
   }
   if(!linhas.length) return '';
   return `\nAvaliação HAS (protocolo SUBPAV/2016, metas conforme Diretriz 2020):\n` + linhas.join('\n');
-}
-
-function montarPlanoSugestoesTexto(p){
-  if(p.tipoConsulta === 'has'){
-    const h = p.protocoloHAS;
-    const linhas = [];
-    if(h.examesSolicitados === false){
-      linhas.push('Solicitar: EAS, glicemia de jejum, eletrólitos (Na/K), creatinina, TFG, colesterol total, HDL, triglicerídeos.');
-    }
-    if(!campoVazio(h.retornoMeses)){
-      linhas.push(`Agendar retorno em ${h.retornoMeses.trim()} meses.`);
-    }
-    return linhas.length ? '\n' + linhas.join('\n') : '';
-  }
-  return '';
 }
 
 function gerarEvolucao(p){
