@@ -93,6 +93,9 @@ function novoPaciente({ nome, leito, contexto, genero }){
     subjetivo:'', avaliacao:'', plano:'',
     ocupacao:'', atividadeFisica:{ pratica:null, detalhe:'' },
     tipoConsulta:'', consultaChecklist:{},
+    protocoloHAS:{ pa1:'', pa2:'', eas:'', glicemiaJejum:'', sodio:'', potassio:'', creatinina:'', tfg:'',
+                   colesterolTotal:'', hdl:'', triglicerideos:'', fundoscopia:'', ecg:'',
+                   orientacaoEstiloVida:{ feita:null, detalhe:'' } },
 
     evolucaoGerada:'',
   };
@@ -117,12 +120,43 @@ async function arquivarPaciente(id){
   await salvarPaciente(p);
 }
 
+// ---- Exclusão definitiva, com fila de pendências (evita "ressurreição" via sync) ----
+async function marcarExclusaoPendente(id){
+  const db = await abrirDB();
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction('fila_sync','readwrite');
+    tx.objectStore('fila_sync').put({ id: 'del_'+id, tipo:'delete', pacienteId:id, criadoEm: Date.now() });
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = (e)=> reject(e.target.error);
+  });
+}
+async function listarExclusoesPendentes(){
+  const todos = await dbGetAll('fila_sync');
+  return todos.filter(x=>x.tipo === 'delete');
+}
+async function removerExclusaoPendente(pacienteId){
+  await dbDelete('fila_sync', 'del_'+pacienteId);
+}
+
 async function excluirPacienteDefinitivo(id){
   await dbDelete('pacientes', id);
-  if(window.excluirDoSupabase){
-    try{ await window.excluirDoSupabase(id); }catch(e){ console.warn('Falha ao excluir remotamente:', e.message); }
+  await marcarExclusaoPendente(id);
+  await processarExclusoesPendentes();
+}
+
+async function processarExclusoesPendentes(){
+  if(!navigator.onLine || !window.excluirDoSupabase) return;
+  const pendentes = await listarExclusoesPendentes();
+  for(const item of pendentes){
+    try{
+      await window.excluirDoSupabase(item.pacienteId);
+      await removerExclusaoPendente(item.pacienteId);
+    }catch(e){
+      console.warn('Exclusão pendente ainda não confirmada no servidor:', e.message);
+    }
   }
 }
+window.addEventListener('online', processarExclusoesPendentes);
 
 // ---- Fila de sincronização (placeholder — plugamos o Supabase depois) ----
 let syncPendentes = 0;
