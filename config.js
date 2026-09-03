@@ -26,6 +26,17 @@ const EXAME_NORMAL_F = {
   mmii:   'MMII: MEMBROS ÍNTEGROS, LIVRES DE EDEMAS, SEM SINAIS DE EMPASTAMENTO COM PULSOS PEDIOSOS PRESENTES E SIMÉTRICOS',
 };
 
+// Mesmo texto em caixa normal (usado na Clínica da Família) — preserva siglas médicas em maiúsculo
+// (ACV, AR, MMII, RCR, BNF, AA etc.) em vez de baixar tudo indiscriminadamente.
+const EXAME_NORMAL_F_LEGIVEL = {
+  geral:  'Paciente lúcida e orientada, cooperativa e interativa com examinador, em bom estado geral, normocorada, hidratada, acianótica, anictérica, eupneica em AA',
+  neuro:  'Neuro: Glasgow 15. Alerta, sem alterações de força ou de sensibilidade, fala ordenada.',
+  acv:    'ACV: RCR em 2T com BNF sincrônico com pulsos radiais',
+  ar:     'AR: MVUA sem RA',
+  abdome: 'Abdome: flácido, peristáltico, timpânico e indolor à palpação superficial e profunda',
+  mmii:   'MMII: membros íntegros, livres de edemas, sem sinais de empastamento, com pulsos pediosos presentes e simétricos',
+};
+
 // conversão automática feminino -> masculino (troca apenas as terminações necessárias)
 const FEM_PARA_MASC = {
   'NORMOCORADA':'NORMOCORADO','HIDRATADA':'HIDRATADO','ACIANÓTICA':'ACIANÓTICO','ANICTÉRICA':'ANICTÉRICO',
@@ -37,6 +48,23 @@ function textoExameNormal(sistemaKey, genero){
   if(genero === 'M'){
     for(const [f,m] of Object.entries(FEM_PARA_MASC)){
       txt = txt.split(f).join(m);
+    }
+  }
+  return txt;
+}
+
+// Versão em caixa normal (Clínica da Família) — mesma lógica de masculinização, mas
+// preservando a capitalização natural do texto (não força maiúscula/minúscula em bloco).
+function textoExameNormalLegivel(sistemaKey, genero){
+  let txt = EXAME_NORMAL_F_LEGIVEL[sistemaKey];
+  if(genero === 'M'){
+    for(const [f,m] of Object.entries(FEM_PARA_MASC)){
+      const re = new RegExp(f, 'gi');
+      txt = txt.replace(re, (match)=>{
+        const alvo = m.toLowerCase();
+        const eraCapitalizado = match.charAt(0) === match.charAt(0).toUpperCase() && /[a-zà-ú]/i.test(match.charAt(0));
+        return eraCapitalizado ? alvo.charAt(0).toUpperCase() + alvo.slice(1) : alvo;
+      });
     }
   }
   return txt;
