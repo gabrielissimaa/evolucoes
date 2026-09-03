@@ -113,7 +113,7 @@ async function renderHome(){
 }
 
 function abrirModalNovoPaciente(){
-  window._novoCtx = { contexto:'enfermaria', genero:'F' };
+  window._novoCtx = { contexto:'enfermaria', genero:'F', tipoConsulta:'' };
   openModal(`
     <h3 style="margin:0 0 14px;">Novo paciente</h3>
     <label class="flabel">Nome (primeiro nome)</label>
@@ -127,6 +127,15 @@ function abrirModalNovoPaciente(){
           <div class="ctxdot" style="background:var(--${v.cor})"></div>
           <div>${v.label}</div>
         </div>`).join('')}
+    </div>
+    <div id="npTipoConsultaWrap" class="hidden">
+      <label class="flabel">É uma consulta agendada padrão?</label>
+      <div class="chipwrap" id="npTipoConsulta">
+        <div class="chip on" data-t="" onclick="selecionarTipoConsultaModal('')">Não / outra</div>
+        ${Object.entries(CONSULTAS_PADRAO).filter(([k])=>k!=='geral').map(([k,v])=>`
+          <div class="chip" data-t="${k}" onclick="selecionarTipoConsultaModal('${k}')">${v.label}</div>`).join('')}
+      </div>
+      <p class="hint" id="npTipoConsultaHint"></p>
     </div>
     <label class="flabel">Gênero (para o texto do exame físico)</label>
     <div class="togglebar" id="npGenero">
@@ -142,6 +151,20 @@ function abrirModalNovoPaciente(){
 function selecionarContexto(k){
   window._novoCtx.contexto = k;
   document.querySelectorAll('#npContexto .ctxopt').forEach(el=> el.classList.toggle('on', el.dataset.k===k));
+  document.getElementById('npTipoConsultaWrap').classList.toggle('hidden', k !== 'clinica');
+}
+function selecionarTipoConsultaModal(t){
+  window._novoCtx.tipoConsulta = t;
+  document.querySelectorAll('#npTipoConsulta .chip').forEach(el=> el.classList.toggle('on', el.dataset.t===t));
+  const proto = t ? CONSULTAS_PADRAO[t] : null;
+  const hintEl = document.getElementById('npTipoConsultaHint');
+  if(proto && proto.obrigatorios){
+    hintEl.textContent = `Os campos vão se adequar aos itens obrigatórios do protocolo de ${proto.label}.`;
+  } else if(proto){
+    hintEl.textContent = `Protocolo de ${proto.label} ainda não foi adequado — a tela abrirá com os campos padrão da clínica por enquanto.`;
+  } else {
+    hintEl.textContent = '';
+  }
 }
 function selecionarGenero(g){
   window._novoCtx.genero = g;
@@ -153,6 +176,9 @@ async function criarPaciente(){
   if(!nome){ showToast('Digite o nome do paciente'); return; }
   const p = novoPaciente({ nome, leito, contexto: window._novoCtx.contexto, genero: window._novoCtx.genero });
   p.exameFisico.genero = window._novoCtx.genero;
+  if(window._novoCtx.contexto === 'clinica' && window._novoCtx.tipoConsulta){
+    p.tipoConsulta = window._novoCtx.tipoConsulta;
+  }
   await salvarPaciente(p);
   closeModal();
   irParaRegistro(p.id);
@@ -352,7 +378,9 @@ function renderTipoConsultaSecao(){
   let corpo = `<div class="chipwrap">${chips}</div>`;
   const proto = paciente.tipoConsulta ? CONSULTAS_PADRAO[paciente.tipoConsulta] : null;
 
-  if(proto && proto.obrigatorios){
+  if(paciente.tipoConsulta === 'has'){
+    corpo += `<p class="hint" style="margin-top:12px;">Campos específicos do protocolo HAS logo abaixo ↓</p>`;
+  } else if(proto && proto.obrigatorios){
     if(proto.alerta){
       corpo += `<div class="qitem" style="border-color:var(--warn);margin-top:12px;"><strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong><p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p></div>`;
     }
@@ -379,6 +407,49 @@ function selecionarTipoConsulta(k){
 function toggleChecklistItem(i){
   if(!paciente.consultaChecklist) paciente.consultaChecklist = {};
   paciente.consultaChecklist[i] = !paciente.consultaChecklist[i];
+  scheduleSave();
+  render();
+}
+
+function renderProtocoloHASSecao(){
+  const proto = CONSULTAS_PADRAO.has;
+  const h = paciente.protocoloHAS;
+  const ldlCalculado = (()=>{
+    const ct = parseFloat(h.colesterolTotal), tg = parseFloat(h.triglicerideos), hdl = parseFloat(h.hdl);
+    if(!isNaN(ct) && !isNaN(tg) && !isNaN(hdl) && tg < 400){
+      return (ct - (tg/5 + hdl)).toFixed(0);
+    }
+    return null;
+  })();
+  return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', `
+    <div class="qitem" style="border-color:var(--warn);">
+      <strong style="color:var(--warn);font-size:12.5px;">⚠ Atenção</strong>
+      <p class="hint" style="color:var(--text2);margin-top:4px;">${escapeHtml(proto.alerta)}</p>
+    </div>
+    <label class="flabel">Aferição da PA (2 medidas)</label>
+    <div class="row2">${campoTexto('1ª medida','protocoloHAS.pa1','Ex: 130x85')}${campoTexto('2ª medida','protocoloHAS.pa2','Ex: 128x82')}</div>
+
+    <label class="flabel" style="margin-top:16px;">Lesão em órgão-alvo</label>
+    ${campoTexto('EAS (proteinúria/hematúria)','protocoloHAS.eas','Achado ou "não realizado"')}
+    <div class="row2">${campoTexto('Glicemia de jejum','protocoloHAS.glicemiaJejum')}${campoTexto('Creatinina','protocoloHAS.creatinina')}</div>
+    <div class="row2">${campoTexto('Sódio','protocoloHAS.sodio')}${campoTexto('Potássio','protocoloHAS.potassio')}</div>
+    ${campoTexto('TFG (taxa de filtração glomerular)','protocoloHAS.tfg')}
+    <div class="row3">${campoTexto('Colesterol total','protocoloHAS.colesterolTotal')}${campoTexto('HDL','protocoloHAS.hdl')}${campoTexto('Triglicerídeos','protocoloHAS.triglicerideos')}</div>
+    ${ldlCalculado!=null ? `<p class="hint">LDL calculado: ${ldlCalculado} mg/dL</p>` : ''}
+    ${campoTexto('Fundoscopia','protocoloHAS.fundoscopia','Achado ou "não realizada"')}
+    ${campoTexto('ECG de repouso','protocoloHAS.ecg','Achado ou "não realizado"')}
+
+    <label class="flabel" style="margin-top:16px;">Orientação sobre estilo de vida (dieta, atividade física, álcool)</label>
+    <div class="togglebar">
+      <button class="${h.orientacaoEstiloVida.feita===false?'on':''}" onclick="setOrientacaoHAS(false)">Não abordado</button>
+      <button class="${h.orientacaoEstiloVida.feita===true?'on':''}" onclick="setOrientacaoHAS(true)">Abordado</button>
+    </div>
+    ${h.orientacaoEstiloVida.feita ? campoArea('Detalhe da orientação','protocoloHAS.orientacaoEstiloVida.detalhe') : ''}
+    <p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>
+  `);
+}
+function setOrientacaoHAS(v){
+  paciente.protocoloHAS.orientacaoEstiloVida.feita = v;
   scheduleSave();
   render();
 }
@@ -462,6 +533,7 @@ function renderRegistro(){
     `);
     secoes += secaoWrap('subj','Subjetivo (complemento livre)', `${campoArea('Relato livre do paciente','subjetivo')}`);
     secoes += renderTipoConsultaSecao();
+    if(paciente.tipoConsulta === 'has') secoes += renderProtocoloHASSecao();
     secoes += renderExameFisicoSecao();
     secoes += secaoWrap('avplan','Avaliação e plano', `
       ${campoArea('Avaliação','avaliacao')}
