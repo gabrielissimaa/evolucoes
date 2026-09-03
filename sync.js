@@ -84,6 +84,12 @@ window.enviarParaSupabase = async function(paciente){
   if(error) throw error;
 };
 
+window.excluirDoSupabase = async function(id){
+  if(!usuarioAtual) return;
+  const { error } = await sb.from('pacientes').delete().eq('id', id);
+  if(error) throw error;
+};
+
 // ---- Sync: ao entrar, busca os pacientes ativos do Supabase e mescla com o local ----
 async function sincronizarAoEntrar(){
   if(!navigator.onLine) return;
