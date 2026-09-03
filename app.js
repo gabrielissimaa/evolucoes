@@ -445,7 +445,7 @@ function renderTipoConsultaSecao(){
   const proto = paciente.tipoConsulta ? protocoloEfetivo(paciente.tipoConsulta) : null;
 
   if(paciente.tipoConsulta === 'has'){
-    corpo += `<p class="hint" style="margin-top:12px;">Campos específicos do protocolo HAS logo abaixo ↓</p>`;
+    corpo += montarCorpoHAS();
     corpo += renderRiscosChecklistHtml(proto);
   } else if(proto && proto.obrigatorios){
     if(proto.alerta){
@@ -565,6 +565,9 @@ function atualizarPlanoAutomaticoGenerico(chave){
 }
 
 function renderProtocoloHASSecao(){
+  return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', montarCorpoHAS());
+}
+function montarCorpoHAS(){
   const proto = CONSULTAS_PADRAO.has;
   const h = paciente.protocoloHAS;
   const ldlCalculado = (()=>{
@@ -616,7 +619,7 @@ function renderProtocoloHASSecao(){
     <p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>
   `;
 
-  return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', corpo);
+  return corpo;
 }
 
 // Monta (ou atualiza) o bloco automático no Plano específico do HAS: só a sugestão de solicitar exames
@@ -757,9 +760,6 @@ function renderRegistro(){
 
   else if(paciente.contexto === 'clinica'){
     secoes += renderTipoConsultaSecao();
-    if(paciente.tipoConsulta === 'has'){
-      secoes += renderProtocoloHASSecao();
-    }
     secoes += secaoWrap('perfil','Perfil', `
       ${campoTexto('Ocupação','ocupacao')}
       <label class="flabel">Pratica atividade física?</label>
