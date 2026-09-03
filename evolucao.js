@@ -216,22 +216,20 @@ function montarChecklistConsultaTexto(p){
   if(p.tipoConsulta === 'has') return montarAvaliacaoHAS(p);
   const proto = CONSULTAS_PADRAO[p.tipoConsulta];
   if(!proto || !proto.obrigatorios) return '';
-  const linhas = [];
+  const partes = [];
   const marcados = (proto.obrigatorios || []).filter((_,i)=> p.consultaChecklist && p.consultaChecklist[i]);
   if(marcados.length){
-    linhas.push(`Itens avaliados nesta consulta (protocolo ${proto.label}):`);
-    linhas.push(...marcados.map(m=>`- ${m}`));
+    partes.push(`Avaliados nesta consulta, conforme protocolo ${proto.label}: ${marcados.join('; ')}.`);
   }
   const riscosMarcados = (proto.riscos || []).filter((_,i)=> p.riscoChecklist && p.riscoChecklist[i]);
   if(riscosMarcados.length){
-    linhas.push(`\n⚠ Sinais de alarme identificados:`);
-    linhas.push(...riscosMarcados.map(m=>`- ${m}`));
+    partes.push(`Sinais de alarme identificados: ${riscosMarcados.join('; ')}.`);
   }
   const pd = p.protocoloDados && p.protocoloDados[p.tipoConsulta];
   if(pd && !campoVazio(pd.observacoes)){
-    linhas.push(`\nObservações: ${pd.observacoes.trim()}`);
+    partes.push(pd.observacoes.trim());
   }
-  return linhas.length ? '\n' + linhas.join('\n') : '';
+  return partes.length ? '\n' + partes.join(' ') : '';
 }
 
 function montarAvaliacaoHAS(p){
