@@ -444,23 +444,11 @@ function renderTipoConsultaSecao(){
       }).join('');
     }
 
-    if(!paciente.protocoloDados[paciente.tipoConsulta]) inicializarProtocoloDados(paciente.tipoConsulta);
-    const pd = paciente.protocoloDados[paciente.tipoConsulta];
-    corpo += `
-      <label class="flabel" style="margin-top:16px;">Retorno sugerido — entra automaticamente no Plano</label>
-      <div class="row2">${campoTextoAutoPlanoGenerico('Retorno em', paciente.tipoConsulta, 'retornoValor', 'Ex: 3')}
-        <div>
-          <label class="flabel">Unidade</label>
-          <div class="togglebar">
-            <button class="${pd.retornoUnidade!=='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','meses')">Meses</button>
-            <button class="${pd.retornoUnidade==='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','dias')">Dias</button>
-          </div>
-        </div>
-      </div>
-      <label class="flabel" style="margin-top:16px;">Encaminhamentos / especialistas de acompanhamento regular</label>
-      ${campoTextoAutoPlanoGenerico('Especialistas', paciente.tipoConsulta, 'especialistas', 'Ex: Psiquiatria, CAPS')}
-      ${campoArea('Observações do protocolo','protocoloDados.'+paciente.tipoConsulta+'.observacoes')}
-    `;
+    if(!paciente.protocoloDados[paciente.tipoConsulta]){
+      inicializarProtocoloDados(paciente.tipoConsulta);
+      atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
+    }
+    corpo += `${campoArea('Observações do protocolo','protocoloDados.'+paciente.tipoConsulta+'.observacoes')}`;
     if(proto.fonte) corpo += `<p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>`;
   } else if(proto){
     corpo += `<p class="hint" style="margin-top:12px;">Protocolo de "${escapeHtml(proto.label)}" ainda não foi revisado e adicionado ao app — em breve.</p>`;
@@ -472,7 +460,7 @@ function selecionarTipoConsulta(k){
   paciente.tipoConsulta = (paciente.tipoConsulta === k) ? '' : k;
   paciente.consultaChecklist = {};
   paciente.riscoChecklist = {};
-  if(paciente.tipoConsulta && paciente.tipoConsulta !== 'has' && !paciente.protocoloDados[paciente.tipoConsulta]){
+  if(paciente.tipoConsulta && !paciente.protocoloDados[paciente.tipoConsulta]){
     inicializarProtocoloDados(paciente.tipoConsulta);
     atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
   }
@@ -592,63 +580,20 @@ function renderProtocoloHASSecao(){
     </div>
     ${h.orientacaoEstiloVida.feita ? campoArea('Detalhe da orientação','protocoloHAS.orientacaoEstiloVida.detalhe') : ''}
 
-    <label class="flabel" style="margin-top:16px;">Retorno sugerido — entra automaticamente no Plano</label>
-    <div class="row2">${campoTextoAutoPlanoHAS('Retorno em','protocoloHAS.retornoValor','Ex: 6')}
-      <div>
-        <label class="flabel">Unidade</label>
-        <div class="togglebar">
-          <button class="${h.retornoUnidade!=='dias'?'on':''}" onclick="setRetornoUnidadeHAS('meses')">Meses</button>
-          <button class="${h.retornoUnidade==='dias'?'on':''}" onclick="setRetornoUnidadeHAS('dias')">Dias</button>
-        </div>
-      </div>
-    </div>
-
-    <label class="flabel" style="margin-top:16px;">Encaminhamentos / especialistas de acompanhamento regular</label>
-    ${campoTextoAutoPlanoHAS('Ex: Cardiologia, Oftalmologia','protocoloHAS.especialistas','Deixe em branco se não houver')}
-
     <p class="hint" style="margin-top:10px;">Fonte: ${escapeHtml(proto.fonte)}</p>
   `;
 
   return secaoWrap('protocoloHAS','Avaliação — Protocolo HAS', corpo);
 }
 
-// Campo de texto que, além de salvar, atualiza automaticamente o bloco correspondente na caixa de Plano
-function campoTextoAutoPlanoHAS(label, path, placeholder=''){
-  return `<div><label class="flabel">${label}</label>
-    <input type="text" value="${escapeHtml(getPath(paciente,path)||'')}" placeholder="${escapeHtml(placeholder)}"
-      oninput="handleFieldAutoPlanoHAS('${path}', this.value)"></div>`;
-}
-function handleFieldAutoPlanoHAS(path, value){
-  setPath(paciente, path, value);
-  atualizarPlanoAutomaticoHAS();
-  scheduleSave();
-  // atualiza só a caixa de plano na tela, sem re-renderizar tudo (evita perder o foco do campo digitado)
-  const planoEl = document.querySelector('textarea[oninput^="handleField(\'plano\'"]');
-  if(planoEl) planoEl.value = paciente.plano;
-}
-function setRetornoUnidadeHAS(u){
-  paciente.protocoloHAS.retornoUnidade = u;
-  atualizarPlanoAutomaticoHAS();
-  scheduleSave();
-  render();
-}
-
-// Monta (ou atualiza) o bloco automático no Plano: exames a solicitar, retorno sugerido e encaminhamentos.
-// Usa um marcador para conseguir substituir só a parte automática sem apagar o que você escreveu à mão.
+// Monta (ou atualiza) o bloco automático no Plano específico do HAS: só a sugestão de solicitar exames
+// (retorno e encaminhamentos agora ficam na seção genérica "Encaminhamentos", igual para todo protocolo).
 function atualizarPlanoAutomaticoHAS(){
   const h = paciente.protocoloHAS;
-  const linhas = [];
-  if(h.examesSolicitados === false){
-    linhas.push('Solicitar: EAS, glicemia de jejum, eletrólitos (Na/K), creatinina, TFG, colesterol total, HDL, triglicerídeos.');
-  }
-  if(!campoVazioApp(h.retornoValor)){
-    linhas.push(`Agendar retorno em ${h.retornoValor.trim()} ${h.retornoUnidade === 'dias' ? 'dias' : 'meses'}.`);
-  }
-  if(!campoVazioApp(h.especialistas)){
-    linhas.push(`Encaminhar para acompanhamento regular: ${h.especialistas.trim()}.`);
-  }
-  const novoBloco = linhas.join('\n');
-  const anterior = h._planoAutoTexto || '';
+  const novoBloco = h.examesSolicitados === false
+    ? 'Solicitar: EAS, glicemia de jejum, eletrólitos (Na/K), creatinina, TFG, colesterol total, HDL, triglicerídeos.'
+    : '';
+  const anterior = h._planoAutoTextoExames || '';
   let plano = paciente.plano || '';
   if(anterior && plano.includes(anterior)){
     plano = plano.replace(anterior, novoBloco);
@@ -656,7 +601,7 @@ function atualizarPlanoAutomaticoHAS(){
     plano = (plano.trim() ? plano.trim() + '\n' : '') + novoBloco;
   }
   paciente.plano = plano.trim();
-  h._planoAutoTexto = novoBloco;
+  h._planoAutoTextoExames = novoBloco;
 }
 function campoVazioApp(v){ return !v || !String(v).trim() || String(v).trim() === '-'; }
 
@@ -670,6 +615,39 @@ function setExamesSolicitadosHAS(v){
   atualizarPlanoAutomaticoHAS();
   scheduleSave();
   render();
+}
+
+function renderEncaminhamentosSecao(){
+  if(!paciente.tipoConsulta) return '';
+  const proto = CONSULTAS_PADRAO[paciente.tipoConsulta];
+  if(!proto) return '';
+  if(!paciente.protocoloDados[paciente.tipoConsulta]){
+    inicializarProtocoloDados(paciente.tipoConsulta);
+    atualizarPlanoAutomaticoGenerico(paciente.tipoConsulta);
+  }
+  const pd = paciente.protocoloDados[paciente.tipoConsulta];
+  const corpo = `
+    <label class="flabel">Retorno sugerido — entra automaticamente no Plano</label>
+    <div class="row2">${campoTextoAutoPlanoGenerico('Retorno em', paciente.tipoConsulta, 'retornoValor', 'Ex: 3')}
+      <div>
+        <label class="flabel">Unidade</label>
+        <div class="togglebar">
+          <button class="${pd.retornoUnidade!=='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','meses')">Meses</button>
+          <button class="${pd.retornoUnidade==='dias'?'on':''}" onclick="setRetornoUnidadeGenerico('${paciente.tipoConsulta}','dias')">Dias</button>
+        </div>
+      </div>
+    </div>
+    ${campoTextoAutoPlanoGenerico('Especialistas', paciente.tipoConsulta, 'especialistas', proto.sugestaoEncaminhamentos || 'Deixe em branco se não houver')}
+  `;
+  return secaoWrap('encaminhamentos','Encaminhamentos / especialistas de acompanhamento regular', corpo);
+}
+
+function sugestaoAvaliacaoAtual(){
+  if(paciente.tipoConsulta){
+    const proto = CONSULTAS_PADRAO[paciente.tipoConsulta];
+    if(proto && proto.sugestaoAvaliacao) return 'Hipótese diagnóstica — ' + proto.sugestaoAvaliacao;
+  }
+  return 'Hipótese diagnóstica';
 }
 
 // ===================== TELA: REGISTRO (por contexto) =====================
@@ -737,6 +715,7 @@ function renderRegistro(){
   }
 
   else if(paciente.contexto === 'clinica'){
+    secoes += renderTipoConsultaSecao();
     secoes += secaoWrap('perfil','Perfil', `
       ${campoTexto('Ocupação','ocupacao')}
       <label class="flabel">Pratica atividade física?</label>
@@ -747,14 +726,13 @@ function renderRegistro(){
       ${paciente.atividadeFisica.pratica ? campoTexto('Qual atividade / frequência','atividadeFisica.detalhe') : ''}
     `);
     secoes += secaoWrap('subj','S — Subjetivo', `${campoArea('Relato do paciente (queixas, história, o que trouxe à consulta)','subjetivo')}`);
-    secoes += renderTipoConsultaSecao();
+    secoes += renderEncaminhamentosSecao();
     if(paciente.tipoConsulta === 'has'){
-      if(!paciente.protocoloHAS._planoAutoTexto) atualizarPlanoAutomaticoHAS();
       secoes += renderProtocoloHASSecao();
     }
     secoes += renderExameFisicoSecao();
     secoes += secaoWrap('avplan','A / P — Avaliação e Plano', `
-      ${campoArea('Avaliação','avaliacao','Hipótese diagnóstica — ex: HAS estágio 1, controlada')}
+      ${campoArea('Avaliação','avaliacao', sugestaoAvaliacaoAtual())}
       ${campoArea('Plano','plano')}
     `);
   }
