@@ -214,11 +214,43 @@ function montarPerfilClinicaTexto(p){
 
 function montarChecklistConsultaTexto(p){
   if(!p.tipoConsulta) return '';
+  if(p.tipoConsulta === 'has') return montarAvaliacaoHAS(p);
   const proto = CONSULTAS_PADRAO[p.tipoConsulta];
   if(!proto || !proto.obrigatorios) return '';
   const marcados = (proto.obrigatorios || []).filter((_,i)=> p.consultaChecklist && p.consultaChecklist[i]);
   if(!marcados.length) return '';
   return `\nItens avaliados nesta consulta (protocolo ${proto.label}):\n` + marcados.map(m=>`- ${m}`).join('\n');
+}
+
+function montarAvaliacaoHAS(p){
+  const h = p.protocoloHAS;
+  if(!h) return '';
+  const linhas = [];
+  if(!campoVazio(h.pa1) || !campoVazio(h.pa2)){
+    linhas.push(`PA: ${campoVazio(h.pa1)?'-':h.pa1} (1ª medida)${!campoVazio(h.pa2) ? ' | '+h.pa2+' (2ª medida)' : ''}`);
+  }
+  if(!campoVazio(h.eas)) linhas.push(`EAS: ${h.eas.trim()}`);
+  if(!campoVazio(h.glicemiaJejum)) linhas.push(`Glicemia de jejum: ${h.glicemiaJejum.trim()}`);
+  if(!campoVazio(h.sodio) || !campoVazio(h.potassio)){
+    linhas.push(`Eletrólitos: Na ${campoVazio(h.sodio)?'-':h.sodio.trim()} | K ${campoVazio(h.potassio)?'-':h.potassio.trim()}`);
+  }
+  if(!campoVazio(h.creatinina)) linhas.push(`Creatinina: ${h.creatinina.trim()}`);
+  if(!campoVazio(h.tfg)) linhas.push(`TFG: ${h.tfg.trim()}`);
+  if(!campoVazio(h.colesterolTotal) || !campoVazio(h.hdl) || !campoVazio(h.triglicerideos)){
+    const ct = parseFloat(h.colesterolTotal), tg = parseFloat(h.triglicerideos), hdl = parseFloat(h.hdl);
+    let ldlTxt = '';
+    if(!isNaN(ct) && !isNaN(tg) && !isNaN(hdl) && tg < 400){
+      ldlTxt = ` | LDL calculado ${(ct - (tg/5 + hdl)).toFixed(0)}`;
+    }
+    linhas.push(`Colesterol total ${campoVazio(h.colesterolTotal)?'-':h.colesterolTotal} | HDL ${campoVazio(h.hdl)?'-':h.hdl} | Triglicerídeos ${campoVazio(h.triglicerideos)?'-':h.triglicerideos}${ldlTxt}`);
+  }
+  if(!campoVazio(h.fundoscopia)) linhas.push(`Fundoscopia: ${h.fundoscopia.trim()}`);
+  if(!campoVazio(h.ecg)) linhas.push(`ECG: ${h.ecg.trim()}`);
+  if(h.orientacaoEstiloVida && h.orientacaoEstiloVida.feita != null){
+    linhas.push(`Orientação de estilo de vida: ${h.orientacaoEstiloVida.feita ? 'ABORDADA' : 'NÃO ABORDADA'}${h.orientacaoEstiloVida.detalhe ? ' — '+h.orientacaoEstiloVida.detalhe.trim() : ''}`);
+  }
+  if(!linhas.length) return '';
+  return `\nAvaliação HAS (protocolo SUBPAV/2016, metas conforme Diretriz 2020):\n` + linhas.join('\n');
 }
 
 function gerarEvolucao(p){
