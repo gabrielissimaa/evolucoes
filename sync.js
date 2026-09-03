@@ -86,29 +86,48 @@ window.enviarParaSupabase = async function(paciente){
 
 window.excluirDoSupabase = async function(id){
   if(!usuarioAtual) return;
-  const { error } = await sb.from('pacientes').delete().eq('id', id);
+  // Soft-delete: marca como excluído em vez de apagar a linha, para que outros
+  // aparelhos vejam a marca e removam a cópia local deles também (tombstone).
+  const { error } = await sb.from('pacientes').update({
+    excluido: true, ativo: false, atualizado_em: new Date().toISOString(),
+  }).eq('id', id);
   if(error) throw error;
 };
 
-// ---- Sync: ao entrar, busca os pacientes ativos do Supabase e mescla com o local ----
+// ---- Sync: ao entrar, busca os pacientes do Supabase e mescla com o local ----
 async function sincronizarAoEntrar(){
   if(!navigator.onLine) return;
   await processarExclusoesPendentes(); // tenta confirmar exclusões que ficaram pendentes
   try{
     const pendentes = new Set((await listarExclusoesPendentes()).map(x=>x.pacienteId));
-    const { data: remotos, error } = await sb.from('pacientes').select('*').eq('ativo', true);
+    // Busca TODOS os registros (não só ativos) para conseguir ver as "lápides" de exclusão
+    const { data: remotos, error } = await sb.from('pacientes').select('*');
     if(error) throw error;
+
+    // 1) Processa lápides de exclusão primeiro — remove a cópia local em qualquer aparelho
     for(const r of (remotos||[])){
+      if(r.excluido){
+        await dbDelete('pacientes', r.id);
+        await removerExclusaoPendente(r.id);
+      }
+    }
+
+    // 2) Mescla todos os registros não excluídos (ativos e arquivados) — arquivados também
+    //    precisam existir localmente em qualquer aparelho para poderem ser geridos/excluídos.
+    for(const r of (remotos||[])){
+      if(r.excluido) continue;
       if(pendentes.has(r.id)) continue; // ainda não confirmamos a exclusão no servidor — não readiciona local
       const local = await dbGet('pacientes', r.id);
       if(!local || new Date(r.atualizado_em) > new Date(local.atualizadoEm)){
         await dbPut('pacientes', r.data);
       }
     }
-    // reenvia qualquer coisa que ficou só local (ex: criada offline)
+
+    // 3) Reenvia qualquer coisa que ficou só local (ex: criada/arquivada offline) — nunca quem já tem lápide remota
+    const idsRemotosConhecidos = new Set((remotos||[]).map(r=>r.id));
     const locais = await dbGetAll('pacientes');
     for(const p of locais){
-      if(p.ativo && !(remotos||[]).find(r=>r.id===p.id)){
+      if(!idsRemotosConhecidos.has(p.id)){
         await window.enviarParaSupabase(p);
       }
     }
