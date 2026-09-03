@@ -1,6 +1,7 @@
 const CACHE_NAME = 'visita-cache-v1';
 const ASSETS = [
-  './', './index.html', './app.js', './config.js', './db.js', './lab.js', './evolucao.js', './sync.js', './manifest.json'
+  './', './index.html', './app.js', './config.js', './db.js', './lab.js', './evolucao.js', './sync.js', './manifest.json',
+  './favicon.ico', './icons/icon-32.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event)=>{
